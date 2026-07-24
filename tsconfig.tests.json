@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "rootDir": ".",
+    "outDir": ".test-dist"
+  },
+  "include": [
+    "database/contracts.ts",
+    "database/ids.ts",
+    "database/models.ts",
+    "database/migrations.ts",
+    "database/seed.ts",
+    "database/repositories/**/*.ts",
+    "tests/**/*.ts"
+  ]
+}

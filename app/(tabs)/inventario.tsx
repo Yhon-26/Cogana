@@ -2,27 +2,69 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { AdminScreen, Pill, SectionTitle, sharedStyles } from '@/components/admin-ui';
+import { AdminScreen, Pill, PrimaryButton, SectionTitle, sharedStyles } from '@/components/admin-ui';
 import { BrandColors } from '@/constants/theme';
-import { useStore } from '@/context/store-context';
+import type { ProductRecord } from '@/database/models';
+import { useLocalProducts } from '@/hooks/use-local-products';
+
+function formatStock(product: ProductRecord, quantity: number) {
+  return product.baseUnit === 'gram'
+    ? `${(quantity / 1000).toFixed(2)} kg`
+    : `${quantity} un.`;
+}
+
+function formatPricingUnit(product: ProductRecord) {
+  if (product.baseUnit === 'gram' && product.pricingQuantity === 1000) return 'kg';
+  if (product.baseUnit === 'gram') return `${product.pricingQuantity} g`;
+  if (product.pricingQuantity === 1) return 'unidad';
+  return `${product.pricingQuantity} un.`;
+}
 
 export default function InventoryScreen() {
-  const { products } = useStore();
+  const { products, isLoading, error, refresh } = useLocalProducts();
   const [query, setQuery] = useState('');
-  const lowStock = products.filter((product) => product.stockKg <= product.minimumKg).length;
-  const totalStock = products.reduce((sum, product) => sum + product.stockKg, 0);
+  const lowStock = products.filter(
+    (product) => product.stockQuantity <= product.minimumStockQuantity
+  ).length;
   const filteredProducts = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('es-PE');
     if (!normalized) return products;
-    return products.filter((product) => `${product.name} ${product.code} ${product.category}`.toLocaleLowerCase('es-PE').includes(normalized));
+    return products.filter((product) =>
+      `${product.name} ${product.sku} ${product.category}`
+        .toLocaleLowerCase('es-PE')
+        .includes(normalized)
+    );
   }, [products, query]);
+
+  if (isLoading) {
+    return (
+      <AdminScreen title="Inventario" subtitle="Consulta existencias y productos por reponer">
+        <View style={[sharedStyles.card, styles.feedbackCard]}>
+          <Text style={styles.feedbackTitle}>Cargando inventario local…</Text>
+          <Text style={styles.feedbackText}>Leyendo productos guardados en este dispositivo.</Text>
+        </View>
+      </AdminScreen>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminScreen title="Inventario" subtitle="Consulta existencias y productos por reponer">
+        <View style={[sharedStyles.card, styles.feedbackCard]}>
+          <Text style={styles.feedbackTitle}>No se pudo cargar el inventario</Text>
+          <Text style={styles.feedbackText}>{error.message}</Text>
+          <PrimaryButton label="Intentar nuevamente" onPress={() => void refresh()} />
+        </View>
+      </AdminScreen>
+    );
+  }
 
   return (
     <AdminScreen title="Inventario" subtitle="Consulta existencias y productos por reponer">
       <View style={styles.metricRow}>
         <View style={[sharedStyles.card, styles.metricCard]}>
-          <Text style={styles.metricLabel}>STOCK TOTAL</Text>
-          <Text style={styles.metricValue}>{totalStock.toFixed(1)} kg</Text>
+          <Text style={styles.metricLabel}>PRODUCTOS ACTIVOS</Text>
+          <Text style={styles.metricValue}>{products.length}</Text>
         </View>
         <View style={[sharedStyles.card, styles.metricCard, styles.alertMetric]}>
           <Text style={styles.alertLabel}>POR REPONER</Text>
@@ -47,8 +89,11 @@ export default function InventoryScreen() {
       </SectionTitle>
       <View style={styles.list}>
         {filteredProducts.map((product) => {
-          const low = product.stockKg <= product.minimumKg;
-          const ratio = Math.min(1, product.stockKg / Math.max(product.minimumKg * 3, 1));
+          const low = product.stockQuantity <= product.minimumStockQuantity;
+          const ratio = Math.min(
+            1,
+            product.stockQuantity / Math.max(product.minimumStockQuantity * 3, 1)
+          );
           return (
             <View key={product.id} style={[sharedStyles.card, styles.productCard]}>
               <View style={styles.productTop}>
@@ -57,24 +102,30 @@ export default function InventoryScreen() {
                 </View>
                 <View style={styles.productCopy}>
                   <Text style={styles.productName}>{product.name}</Text>
-                  <Text style={styles.productMeta}>{product.code} · {product.category}</Text>
+                  <Text style={styles.productMeta}>{product.sku} · {product.category}</Text>
                 </View>
                 <Pill label={low ? 'Stock bajo' : 'Disponible'} tone={low ? 'gold' : 'green'} />
               </View>
               <View style={styles.stockRow}>
                 <View>
                   <Text style={styles.stockLabel}>Existencia</Text>
-                  <Text style={styles.stockValue}>{product.stockKg.toFixed(2)} kg</Text>
+                  <Text style={styles.stockValue}>
+                    {formatStock(product, product.stockQuantity)}
+                  </Text>
                 </View>
                 <View style={styles.priceCopy}>
                   <Text style={styles.stockLabel}>Precio actual</Text>
-                  <Text style={styles.priceValue}>S/ {product.pricePerKg.toFixed(2)} / kg</Text>
+                  <Text style={styles.priceValue}>
+                    S/ {(product.priceCents / 100).toFixed(2)} / {formatPricingUnit(product)}
+                  </Text>
                 </View>
               </View>
               <View style={styles.progressTrack}>
                 <View style={[styles.progressFill, { width: `${Math.max(ratio * 100, 3)}%` }, low && styles.progressFillLow]} />
               </View>
-              <Text style={styles.minimum}>Mínimo recomendado: {product.minimumKg} kg</Text>
+              <Text style={styles.minimum}>
+                Mínimo recomendado: {formatStock(product, product.minimumStockQuantity)}
+              </Text>
             </View>
           );
         })}
@@ -84,6 +135,9 @@ export default function InventoryScreen() {
 }
 
 const styles = StyleSheet.create({
+  feedbackCard: { gap: 12, padding: 18 },
+  feedbackTitle: { color: BrandColors.text, fontSize: 15, fontWeight: '800' },
+  feedbackText: { color: BrandColors.muted, fontSize: 11, lineHeight: 17 },
   metricRow: { flexDirection: 'row', gap: 12 },
   metricCard: { flex: 1, padding: 15 },
   alertMetric: { backgroundColor: BrandColors.goldLight, borderColor: '#E8D68F' },

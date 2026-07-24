@@ -26,6 +26,14 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+tmp/
+temp/
+
 # macOS
 .DS_Store
 *.pem
@@ -38,6 +46,15 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+.test-dist/
+
+# local databases
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
 
 app-example
 

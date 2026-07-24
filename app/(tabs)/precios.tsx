@@ -2,26 +2,59 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { AdminScreen, Pill, SectionTitle, sharedStyles } from '@/components/admin-ui';
+import { AdminScreen, Pill, PrimaryButton, SectionTitle, sharedStyles } from '@/components/admin-ui';
 import { BrandColors } from '@/constants/theme';
-import { Product, useStore } from '@/context/store-context';
+import type { ProductRecord } from '@/database/models';
+import { updateProductPrice } from '@/database/repositories/price-repository';
+import { DEFAULT_STORE_ID, DEMO_ADMIN_USER_ID, DEMO_DEVICE_ID } from '@/database/seed';
+import { useLocalProducts } from '@/hooks/use-local-products';
 
-function PriceEditor({ product, onSave }: { product: Product; onSave: (price: number) => void }) {
-  const [value, setValue] = useState(product.pricePerKg.toFixed(2));
+function formatPricingUnit(product: ProductRecord) {
+  if (product.baseUnit === 'gram' && product.pricingQuantity === 1000) return 'kg';
+  if (product.baseUnit === 'gram') return `${product.pricingQuantity} g`;
+  if (product.pricingQuantity === 1) return 'unidad';
+  return `${product.pricingQuantity} un.`;
+}
+
+function PriceEditor({
+  product,
+  onSave,
+}: {
+  product: ProductRecord;
+  onSave: (priceCents: number) => Promise<void>;
+}) {
+  const [value, setValue] = useState((product.priceCents / 100).toFixed(2));
+  const [isSaving, setIsSaving] = useState(false);
   const parsedValue = Number(value.replace(',', '.'));
-  const valid = Number.isFinite(parsedValue) && parsedValue > 0;
-  const changed = valid && Math.abs(parsedValue - product.pricePerKg) > 0.001;
+  const parsedCents = Math.round(parsedValue * 100);
+  const valid = Number.isFinite(parsedValue) && parsedValue > 0 && Number.isSafeInteger(parsedCents);
+  const changed = valid && parsedCents !== product.priceCents;
+  const pricingUnit = formatPricingUnit(product);
 
   const adjust = (difference: number) => {
-    const current = valid ? parsedValue : product.pricePerKg;
+    const current = valid ? parsedValue : product.priceCents / 100;
     setValue(Math.max(0.1, current + difference).toFixed(2));
   };
 
-  const save = () => {
-    if (!valid || !changed) return;
-    onSave(parsedValue);
-    setValue(parsedValue.toFixed(2));
-    Alert.alert('Precio actualizado', `${product.name}\nNuevo precio: S/ ${parsedValue.toFixed(2)} por kg`);
+  const save = async () => {
+    if (!valid || !changed || isSaving) return;
+
+    setIsSaving(true);
+    try {
+      await onSave(parsedCents);
+      setValue((parsedCents / 100).toFixed(2));
+      Alert.alert(
+        'Precio actualizado',
+        `${product.name}\nNuevo precio: S/ ${(parsedCents / 100).toFixed(2)} por ${pricingUnit}`
+      );
+    } catch (caughtError) {
+      Alert.alert(
+        'No se pudo actualizar',
+        caughtError instanceof Error ? caughtError.message : 'Ocurrió un error inesperado.'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -32,12 +65,12 @@ function PriceEditor({ product, onSave }: { product: Product; onSave: (price: nu
         </View>
         <View style={styles.productCopy}>
           <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productMeta}>{product.code} · {product.category}</Text>
+          <Text style={styles.productMeta}>{product.sku} · {product.category}</Text>
         </View>
         {changed ? <Pill label="Sin guardar" tone="gold" /> : null}
       </View>
 
-      <Text style={styles.inputLabel}>Precio de venta por kilogramo</Text>
+      <Text style={styles.inputLabel}>Precio de venta por {pricingUnit}</Text>
       <View style={styles.editorRow}>
         <Pressable accessibilityLabel="Reducir precio" onPress={() => adjust(-0.1)} style={styles.stepButton}>
           <MaterialCommunityIcons name="minus" size={21} color={BrandColors.greenDark} />
@@ -51,7 +84,7 @@ function PriceEditor({ product, onSave }: { product: Product; onSave: (price: nu
             style={styles.priceInput}
             value={value}
           />
-          <Text style={styles.unit}>/ kg</Text>
+          <Text style={styles.unit}>/ {pricingUnit}</Text>
         </View>
         <Pressable accessibilityLabel="Aumentar precio" onPress={() => adjust(0.1)} style={styles.stepButton}>
           <MaterialCommunityIcons name="plus" size={21} color={BrandColors.greenDark} />
@@ -59,26 +92,72 @@ function PriceEditor({ product, onSave }: { product: Product; onSave: (price: nu
       </View>
       {!valid ? <Text style={styles.errorText}>Ingresa un precio mayor que cero.</Text> : null}
       <Pressable
-        disabled={!changed}
-        onPress={save}
-        style={({ pressed }) => [styles.saveButton, !changed && styles.saveButtonDisabled, pressed && changed && styles.pressed]}>
-        <MaterialCommunityIcons name="content-save-outline" size={18} color={changed ? BrandColors.white : '#939A94'} />
-        <Text style={[styles.saveText, !changed && styles.saveTextDisabled]}>Guardar precio</Text>
+        disabled={!changed || isSaving}
+        onPress={() => void save()}
+        style={({ pressed }) => [
+          styles.saveButton,
+          (!changed || isSaving) && styles.saveButtonDisabled,
+          pressed && changed && !isSaving && styles.pressed,
+        ]}>
+        <MaterialCommunityIcons
+          name="content-save-outline"
+          size={18}
+          color={changed && !isSaving ? BrandColors.white : '#939A94'}
+        />
+        <Text style={[styles.saveText, (!changed || isSaving) && styles.saveTextDisabled]}>
+          {isSaving ? 'Guardando…' : 'Guardar precio'}
+        </Text>
       </Pressable>
     </View>
   );
 }
 
 export default function PricesScreen() {
-  const { products, updatePrice } = useStore();
+  const { database, products, isLoading, error, refresh } = useLocalProducts();
+
+  const savePrice = async (productId: string, priceCents: number) => {
+    await updateProductPrice(database, {
+      storeId: DEFAULT_STORE_ID,
+      productId,
+      newPriceCents: priceCents,
+      actorUserId: DEMO_ADMIN_USER_ID,
+      deviceId: DEMO_DEVICE_ID,
+    });
+    await refresh(false);
+  };
+
+  if (isLoading) {
+    return (
+      <AdminScreen title="Actualización de precios" subtitle="Modifica el precio base de cada producto">
+        <View style={[sharedStyles.card, styles.feedbackCard]}>
+          <Text style={styles.feedbackTitle}>Cargando precios locales…</Text>
+          <Text style={styles.feedbackText}>Leyendo el catálogo guardado en este dispositivo.</Text>
+        </View>
+      </AdminScreen>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminScreen title="Actualización de precios" subtitle="Modifica el precio base de cada producto">
+        <View style={[sharedStyles.card, styles.feedbackCard]}>
+          <Text style={styles.feedbackTitle}>No se pudieron cargar los precios</Text>
+          <Text style={styles.feedbackText}>{error.message}</Text>
+          <PrimaryButton label="Intentar nuevamente" onPress={() => void refresh()} />
+        </View>
+      </AdminScreen>
+    );
+  }
 
   return (
-    <AdminScreen title="Actualización de precios" subtitle="Modifica el precio por kilo de cada producto">
+    <AdminScreen title="Actualización de precios" subtitle="Modifica el precio base de cada producto">
       <View style={[sharedStyles.card, styles.infoCard]}>
         <View style={styles.infoIcon}>
           <MaterialCommunityIcons name="information-outline" size={21} color={BrandColors.warning} />
         </View>
-        <Text style={styles.infoText}>Los cambios se reflejan de inmediato en Nueva venta y se reinician al recargar la app.</Text>
+        <Text style={styles.infoText}>
+          Los cambios se guardan en SQLite, conservan su historial y quedan pendientes de sincronización.
+        </Text>
       </View>
 
       <SectionTitle action={<Text style={styles.productCount}>{products.length} productos</Text>}>
@@ -86,7 +165,11 @@ export default function PricesScreen() {
       </SectionTitle>
       <View style={styles.list}>
         {products.map((product) => (
-          <PriceEditor key={product.id} product={product} onSave={(price) => updatePrice(product.id, price)} />
+          <PriceEditor
+            key={product.id}
+            product={product}
+            onSave={(priceCents) => savePrice(product.id, priceCents)}
+          />
         ))}
       </View>
     </AdminScreen>
@@ -94,6 +177,9 @@ export default function PricesScreen() {
 }
 
 const styles = StyleSheet.create({
+  feedbackCard: { gap: 12, padding: 18 },
+  feedbackTitle: { color: BrandColors.text, fontSize: 15, fontWeight: '800' },
+  feedbackText: { color: BrandColors.muted, fontSize: 11, lineHeight: 17 },
   infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: BrandColors.goldLight, borderColor: '#E9D994', padding: 14 },
   infoIcon: { width: 36, height: 36, borderRadius: 11, backgroundColor: '#F1DF9D', alignItems: 'center', justifyContent: 'center', marginRight: 11 },
   infoText: { flex: 1, color: '#6E571B', fontSize: 11, lineHeight: 16 },

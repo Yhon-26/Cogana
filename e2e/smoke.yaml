@@ -1,0 +1,18 @@
+appId: com.yhonq.coguanaapp
+---
+- launchApp:
+    clearState: true
+- assertVisible: "COGUANA"
+- assertVisible: "Entrar al panel"
+- assertVisible: "Comprar como cliente"
+- tapOn: "Comprar como cliente"
+- assertVisible: "Qué gusto verte."
+- assertVisible: "Correo"
+- assertVisible: "Contraseña"
+- assertVisible: "Entrar"
+- tapOn: "Leer términos y privacidad"
+- assertVisible: "Términos y privacidad"
+- tapOn: "Entendido"
+- assertVisible: "Qué gusto verte."
+- tapOn: "Volver al inicio"
+- assertVisible: "Entrar al panel"

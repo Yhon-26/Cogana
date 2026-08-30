@@ -1,11 +1,13 @@
 import type { DatabaseAdapter } from '../contracts';
 import { createId } from '../ids';
+import { roundIntegerRatio } from '../integer-calculations';
 import type {
   PresentationType,
   ProductPresentationRecord,
   ProductRecord,
 } from '../models';
 import { recordInventoryMovement } from './inventory-repository';
+import { getActiveLocalUser } from './local-user-repository';
 import { getProductById } from './product-repository';
 import { enqueueOperation } from './sync-outbox-repository';
 
@@ -34,6 +36,12 @@ export type CreateProductPresentationInput = {
   fixedPriceCents?: number | null;
   actorUserId: string;
   deviceId: string;
+};
+
+export type UpdateProductPresentationInput = CreateProductPresentationInput & {
+  presentationId: string;
+  expectedVersion: number;
+  isActive: boolean;
 };
 
 export type RecordPresentationMovementInput = {
@@ -79,6 +87,35 @@ export async function listProductPresentations(
   return rows.map(mapPresentationRow);
 }
 
+export async function listAllProductPresentations(
+  database: DatabaseAdapter,
+  storeId: string,
+  productId: string
+): Promise<ProductPresentationRecord[]> {
+  const rows = await database.getAll<ProductPresentationRow>(
+    `SELECT * FROM product_presentations
+     WHERE store_id = ? AND product_id = ?
+     ORDER BY is_active DESC,name COLLATE NOCASE`,
+    [storeId, productId]
+  );
+  return rows.map(mapPresentationRow);
+}
+
+export async function listActivePresentations(
+  database: DatabaseAdapter,
+  storeId: string
+): Promise<ProductPresentationRecord[]> {
+  const rows = await database.getAll<ProductPresentationRow>(
+    `SELECT *
+     FROM product_presentations
+     WHERE store_id = ? AND is_active = 1
+     ORDER BY product_id, name COLLATE NOCASE`,
+    [storeId]
+  );
+
+  return rows.map(mapPresentationRow);
+}
+
 export async function getProductPresentationById(
   database: DatabaseAdapter,
   storeId: string,
@@ -102,8 +139,10 @@ export function calculatePresentationPriceCents(
 
   return (
     presentation.fixedPriceCents ??
-    Math.round(
-      (product.priceCents * presentation.quantityInBaseUnits) / product.pricingQuantity
+    roundIntegerRatio(
+      product.priceCents,
+      presentation.quantityInBaseUnits,
+      product.pricingQuantity
     )
   );
 }
@@ -138,6 +177,14 @@ export async function createProductPresentation(
   const fixedPriceCents = input.fixedPriceCents ?? null;
 
   return database.transaction(async (transaction) => {
+    const actor = await getActiveLocalUser(
+      transaction,
+      input.storeId,
+      input.actorUserId
+    );
+    if (!actor || actor.role !== 'administrator') {
+      throw new Error('Solo un administrador puede crear presentaciones.');
+    }
     const product = await getProductById(transaction, input.storeId, input.productId);
     if (!product) {
       throw new Error('No se encontró el producto para crear la presentación.');
@@ -166,6 +213,7 @@ export async function createProductPresentation(
     await enqueueOperation(transaction, {
       id: outboxId,
       storeId: input.storeId,
+      actorUserId: input.actorUserId,
       operationId: presentationId,
       entityType: 'product_presentation',
       entityId: presentationId,
@@ -196,6 +244,97 @@ export async function createProductPresentation(
     }
 
     return presentation;
+  });
+}
+
+export async function updateProductPresentation(
+  database: DatabaseAdapter,
+  input: UpdateProductPresentationInput
+): Promise<ProductPresentationRecord> {
+  if (!input.sku.trim() || !input.name.trim()) {
+    throw new Error('La presentación requiere código y nombre.');
+  }
+  if (!Number.isSafeInteger(input.quantityInBaseUnits) || input.quantityInBaseUnits <= 0) {
+    throw new Error('La conversión debe ser un entero positivo.');
+  }
+  if (
+    input.fixedPriceCents !== undefined &&
+    input.fixedPriceCents !== null &&
+    (!Number.isSafeInteger(input.fixedPriceCents) || input.fixedPriceCents < 0)
+  ) {
+    throw new Error('El precio fijo debe usar céntimos enteros.');
+  }
+  const timestamp = new Date().toISOString();
+  return database.transaction(async (transaction) => {
+    const actor = await getActiveLocalUser(
+      transaction,
+      input.storeId,
+      input.actorUserId
+    );
+    if (!actor || actor.role !== 'administrator') {
+      throw new Error('Solo un administrador puede editar presentaciones.');
+    }
+    const current = await getProductPresentationById(
+      transaction,
+      input.storeId,
+      input.presentationId
+    );
+    if (!current || current.productId !== input.productId) {
+      throw new Error('No se encontró la presentación.');
+    }
+    const updated = await transaction.run(
+      `UPDATE product_presentations SET
+        sku = ?,name = ?,presentation_type = ?,quantity_in_base_units = ?,
+        fixed_price_cents = ?,is_active = ?,updated_at = ?,version = version + 1
+       WHERE id = ? AND store_id = ? AND version = ?`,
+      [
+        input.sku.trim(),
+        input.name.trim(),
+        input.type,
+        input.quantityInBaseUnits,
+        input.fixedPriceCents ?? null,
+        input.isActive ? 1 : 0,
+        timestamp,
+        input.presentationId,
+        input.storeId,
+        input.expectedVersion,
+      ]
+    );
+    if (updated.changes !== 1) {
+      throw new Error('La presentación cambió; vuelve a cargarla.');
+    }
+    await enqueueOperation(transaction, {
+      id: createId(),
+      storeId: input.storeId,
+      actorUserId: input.actorUserId,
+      operationId: createId(),
+      entityType: 'product_presentation',
+      entityId: input.presentationId,
+      operationType: 'product_presentation.updated',
+      payload: {
+        id: input.presentationId,
+        storeId: input.storeId,
+        productId: input.productId,
+        sku: input.sku.trim(),
+        name: input.name.trim(),
+        type: input.type,
+        quantityInBaseUnits: input.quantityInBaseUnits,
+        fixedPriceCents: input.fixedPriceCents ?? null,
+        isActive: input.isActive,
+        expectedVersion: input.expectedVersion,
+        actorUserId: input.actorUserId,
+        deviceId: input.deviceId,
+        updatedAt: timestamp,
+      },
+      timestamp,
+    });
+    const result = await getProductPresentationById(
+      transaction,
+      input.storeId,
+      input.presentationId
+    );
+    if (!result) throw new Error('No se pudo recuperar la presentación.');
+    return result;
   });
 }
 

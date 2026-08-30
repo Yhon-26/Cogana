@@ -1,6 +1,7 @@
 import type { DatabaseAdapter } from '../contracts';
 import { createId } from '../ids';
 import type { PriceHistoryRecord, ProductRecord } from '../models';
+import { getActiveLocalUser } from './local-user-repository';
 import { getProductById } from './product-repository';
 import { enqueueOperation } from './sync-outbox-repository';
 
@@ -77,6 +78,15 @@ export async function updateProductPrice(
   const reason = input.reason?.trim() || 'Actualización manual de precio';
 
   return database.transaction(async (transaction) => {
+    const actor = await getActiveLocalUser(
+      transaction,
+      input.storeId,
+      input.actorUserId
+    );
+    if (!actor || actor.role !== 'administrator') {
+      throw new Error('Solo un administrador puede cambiar precios.');
+    }
+
     const currentProduct = await getProductById(transaction, input.storeId, input.productId);
     if (!currentProduct) {
       throw new Error('No se encontró el producto que se desea actualizar.');
@@ -125,6 +135,7 @@ export async function updateProductPrice(
     await enqueueOperation(transaction, {
       id: outboxId,
       storeId: input.storeId,
+      actorUserId: input.actorUserId,
       operationId: historyId,
       entityType: 'price_history',
       entityId: historyId,

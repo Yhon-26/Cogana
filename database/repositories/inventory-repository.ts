@@ -140,6 +140,7 @@ export async function recordInventoryMovement(
     await enqueueOperation(transaction, {
       id: outboxId,
       storeId: input.storeId,
+      actorUserId: input.actorUserId,
       operationId: movementId,
       entityType: 'inventory_movement',
       entityId: movementId,

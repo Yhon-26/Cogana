@@ -1,0 +1,31 @@
+# Test General de Toda la App - Coguana
+# Cubre: Bienvenida, Cliente, Operador, Modulos principales
+appId: com.yhonq.coguanaapp
+---
+# 1. PANTALLA DE BIENVENIDA
+- launchApp
+- assertVisible: "COGUANA"
+- scrollUntilVisible:
+    element: "Entrar al panel"
+    direction: UP
+- assertVisible: "Entrar al panel"
+- scrollUntilVisible:
+    element: "Comprar como cliente"
+    direction: DOWN
+- assertVisible: "Comprar como cliente"
+
+# 2. FLUJO DE CLIENTE - Autenticacion
+- tapOn: "Comprar como cliente"
+- assertVisible: "Correo"
+- assertVisible: "Contrase\u00f1a"
+- assertVisible: "Entrar"
+
+# 3. VOLVER AL INICIO
+- back
+- assertVisible: "COGUANA"
+
+# 4. FLUJO DE OPERADOR
+- scrollUntilVisible:
+    element: "Entrar al panel"
+    direction: UP
+- tapOn: "Entrar al panel"

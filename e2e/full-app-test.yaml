@@ -1,0 +1,28 @@
+# Test General Completo - Coguana (con logo integrado)
+appId: com.yhonq.coguanaapp
+---
+# 1. PANTALLA DE BIENVENIDA
+- launchApp:
+    clearState: false
+- scrollUntilVisible:
+    element: "Entrar al panel"
+    direction: UP
+    timeout: 30000
+- tapOn: "Entrar al panel"
+
+# 2. PANEL DE ADMINISTRADOR
+- assertVisible: "Panel administrador"
+- assertVisible: "Inicio"
+- assertVisible: "Venta"
+- tapOn: "Inicio"
+
+# 3. FLUJO DE CLIENTE
+- back
+- scrollUntilVisible:
+    element: "Comprar como cliente"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "Comprar como cliente"
+- assertVisible: "Correo"
+- assertVisible: "Contrase\u00f1a"
+- assertVisible: "Entrar"

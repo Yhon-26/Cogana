@@ -40,6 +40,10 @@ temp/
 
 # local env files
 .env*.local
+.env
+supabase/.env
+supabase/.branches
+supabase/.temp
 
 # local assistant settings
 .claude/

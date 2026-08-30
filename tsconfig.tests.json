@@ -11,12 +11,19 @@
     "outDir": ".test-dist"
   },
   "include": [
+    "auth/customer-auth-error.ts",
+    "auth/customer-auth-validation.ts",
     "database/contracts.ts",
     "database/ids.ts",
     "database/models.ts",
+    "database/payment-validation.ts",
     "database/migrations.ts",
     "database/seed.ts",
     "database/repositories/**/*.ts",
+    "lib/user-facing-error.ts",
+    "online/cart.ts",
+    "online/contracts.ts",
+    "sync/**/*.ts",
     "tests/**/*.ts"
   ]
 }

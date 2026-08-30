@@ -18,7 +18,7 @@ El prototipo local actual sirve como base visual y funcional para cinco interfac
 
 | Código | Interfaz actual | Ruta |
 |---|---|---|
-| E1 | Panel administrador | `/` |
+| E1 | Panel administrador | `/panel` |
 | E2 | Nueva venta | `/venta` |
 | E3 | Inventario | `/inventario` |
 | E4 | Pedidos | `/pedidos` |
@@ -28,19 +28,21 @@ La entrega asignada en este documento indica cuándo se completa la capacidad re
 
 ## Arquitectura de datos
 
-La arquitectura es **offline-first**, pero mantiene una única fuente central de verdad para toda operación real.
+La arquitectura es **online-first con resiliencia offline**: la única fuente de
+verdad es central (PostgreSQL mediante Supabase) y la copia local sostiene la
+operación ante cortes de red hasta la siguiente sincronización.
 
 | Capa | Tecnología | Responsabilidad |
 |---|---|---|
 | Base central y oficial | PostgreSQL mediante Supabase | Consolidar usuarios, productos, precios, inventario, caja, ventas, pedidos y demás datos compartidos por toda la operación. |
-| Base local por dispositivo | SQLite en cada teléfono | Permitir lectura y escritura sin internet, mantener una copia operativa local y guardar una cola de cambios pendientes. |
+| Base local por dispositivo | SQLite en cada teléfono | Continuar la operación ante cortes de red y guardar una cola de cambios pendientes (resiliencia, no alternativa de operación). |
 | Acceso seguro | API de Supabase, sesiones autenticadas, reglas RLS y funciones seguras | Autorizar qué datos puede leer o modificar cada usuario sin exponer credenciales privilegiadas. |
 | Sincronización | Cola local y proceso de sincronización con Supabase | Enviar operaciones pendientes, recibir cambios centrales y resolver su estado de sincronización. |
 
 ### Reglas de arquitectura
 
-- **PostgreSQL mediante Supabase es la fuente central y oficial.** La tienda online, restaurantes, clientes mayoristas y futuras sucursales utilizarán esta misma base central.
-- **SQLite es la base local de cada teléfono para trabajar offline.** No reemplaza PostgreSQL ni debe tratarse como una base central compartida.
+- **PostgreSQL mediante Supabase es la fuente central y oficial.** La tienda online, restaurantes, clientes mayoristas y futuras sucursales utilizan esta misma base central.
+- **SQLite es la copia operativa local de cada teléfono para resiliencia ante cortes.** No reemplaza PostgreSQL ni debe tratarse como una base central compartida.
 - Una demostración inicial puede funcionar en un solo dispositivo usando únicamente SQLite. Esta modalidad sirve para validar el flujo, pero no representa una operación multiusuario real.
 - El piloto real con **Administrador**, **Vendedor esposo** y **Vendedora esposa** requiere PostgreSQL mediante Supabase y sincronización entre dispositivos.
 - La aplicación nunca se conectará directamente con la contraseña de PostgreSQL. El cliente utilizará Supabase, sesiones autenticadas y reglas **Row Level Security (RLS)**; las operaciones privilegiadas se ejecutarán mediante funciones seguras. Ninguna contraseña de PostgreSQL ni clave con privilegios administrativos se incluirá en la aplicación.
@@ -61,6 +63,14 @@ La arquitectura es **offline-first**, pero mantiene una única fuente central de
 ## 1. MVP interno
 
 Esta entrega queda deliberadamente limitada a 22 interfaces. La demostración inicial puede funcionar con SQLite en un solo dispositivo; antes del piloto real multiusuario debe conectarse a Supabase/PostgreSQL y sincronizar las operaciones locales.
+
+### Estado de implementación
+
+Las 22 interfaces del MVP interno ya tienen soporte funcional. Inventario
+incluye listado, detalle, creación, edición, kardex, entrada de mercadería y
+ajuste por conteo. Las altas y ediciones de producto generan outbox y el backend
+las aplica mediante la extensión de sincronización
+`20260727000012_product_management_sync.sql`.
 
 ### Decisiones de alcance del MVP interno
 
@@ -96,6 +106,16 @@ Esta entrega queda deliberadamente limitada a 22 interfaces. La demostración in
 ## 2. Venta online minorista
 
 Esta entrega añade la experiencia de compra del cliente y conecta el ciclo de pedido. Incluye el manejo posterior de diferencias entre el peso estimado y el peso final preparado.
+
+### Estado de implementación
+
+La entrega minorista está implementada: bienvenida, acceso y recuperación,
+catálogo, búsqueda, producto, carrito, checkout, dirección, pedidos,
+seguimiento, repetición, favoritos, promociones, perfil, preferencias,
+seguridad, términos y soporte. La bandeja E4 forma parte de la navegación
+interna e incluye preparación, peso final, incidencias, sustituciones,
+planificación y asignación. Los medios tokenizados y el cobro real continúan
+condicionados a contratar y configurar un proveedor de pagos.
 
 | Nombre | Tipo de interfaz | Tipo de usuario | Objetivo | Se abre desde | Acción principal | Entrega | Reutilización |
 |---|---|---|---|---|---|---|---|
@@ -144,6 +164,13 @@ Esta entrega añade la experiencia de compra del cliente y conecta el ciclo de p
 
 Esta entrega reutiliza la cuenta, el catálogo, el carrito y el ciclo de pedidos minorista, agregando condiciones y flujos comerciales propios.
 
+### Estado de implementación
+
+El registro comercial, selección de negocio, condiciones, precios acordados,
+cotizaciones, pedidos recurrentes, crédito, documentos y panel interno están
+implementados sobre el mismo catálogo y ciclo de pedidos. La activación de
+crédito real sigue siendo una decisión contable de cada tienda.
+
 | Nombre | Tipo de interfaz | Tipo de usuario | Objetivo | Se abre desde | Acción principal | Entrega | Reutilización |
 |---|---|---|---|---|---|---|---|
 | Registro de negocio | Pantalla | Restaurante o mayorista | Solicitar cuenta comercial con RUC y contacto | Inicio de sesión; Bienvenida | Enviar solicitud | Restaurantes y mayoristas | No |
@@ -166,6 +193,14 @@ Esta entrega reutiliza la cuenta, el catálogo, el carrito y el ciclo de pedidos
 
 Primero se habilita el reparto propio y la selección manual de operadores. La asignación y el rastreo automáticos con empresas externas quedan identificados como integración posterior dentro de esta entrega.
 
+### Estado de implementación
+
+El reparto propio incluye asignación, inicio, evidencia fotográfica, código de
+confirmación, entrega e incidencia; el cliente ve el seguimiento. Zonas,
+tarifas, mínimos, horarios y operadores externos se administran centralmente.
+La automatización de mapas y operadores externos permanece desactivada hasta
+disponer de contrato, API, SLA y credenciales.
+
 | Nombre | Tipo de interfaz | Tipo de usuario | Objetivo | Se abre desde | Acción principal | Entrega | Reutilización |
 |---|---|---|---|---|---|---|---|
 | Panel de despachos | Pantalla | Administrador y coordinador | Ver pedidos listos, asignados y en ruta | E1; Bandeja de pedidos | Asignar despacho | Delivery propio y externo | Sí: estructura de E4 |
@@ -186,6 +221,17 @@ Primero se habilita el reparto propio y la selección manual de operadores. La a
 ## 5. Expansión
 
 Esta entrega agrupa funciones que no son necesarias para validar la operación inicial: control interno avanzado, SUNAT, analítica, soporte, automatización y múltiples locales.
+
+### Estado de implementación
+
+Están implementados bloqueo por inactividad, historial y devolución parcial,
+revisión de diferencias de caja, catálogo avanzado, compras/lotes/conteo,
+escáner, empleados/permisos/turnos/asistencia, reportes y CSV, auditoría,
+promociones, preferencias, ayuda/soporte, configuración y administración
+central de sucursales. La quinta pestaña es **Más** e incluye diagnóstico de
+sincronización y advertencia sobre operaciones pendientes. SUNAT, pagos
+tokenizados, mapas y logística automática tienen base segura de configuración,
+pero su activación depende de proveedores y secretos externos.
 
 | Nombre | Tipo de interfaz | Tipo de usuario | Objetivo | Se abre desde | Acción principal | Entrega | Reutilización |
 |---|---|---|---|---|---|---|---|
@@ -234,3 +280,12 @@ Esta entrega agrupa funciones que no son necesarias para validar la operación i
 5. Incorporar la **Expansión** cuando la operación principal genere datos suficientes para justificar SUNAT, reportes avanzados, soporte y múltiples sucursales.
 
 Ninguna entrega posterior debe ampliar el MVP interno antes de que sus 22 interfaces funcionen como un recorrido completo y recuperable.
+
+## Estado de cierre técnico
+
+El recorrido completo del roadmap está representado y conectado en la
+aplicación y el backend. Las acciones restantes no son interfaces locales:
+aprovisionar Supabase productivo, ejecutar pgTAP contra PostgreSQL, validar el
+piloto con dos teléfonos, contratar/configurar proveedores externos, crear el
+proyecto EAS y publicar mediante cuentas Apple/Google. Los pasos reproducibles
+están documentados en `docs/despliegue.md`.

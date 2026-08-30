@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native generated folders (EAS usa CNG/prebuild)
+/android
+/ios
+
+# Local env files
+.env
+.env*.local
+
+# Temporary
+*.tmp
+*.temp
+*.bak
+*.swp
+tmp/
+temp/
+
+# TypeScript
+*.tsbuildinfo
+.test-dist/
+
+# Local databases
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# macOS
+.DS_Store
+*.pem
+
+# Keystores and credentials (NUNCA subir)
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Debug
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# Local assistant settings
+.claude/
+.codex/
+.impeccable/
+.agents/
+
+# Docs y backups locales
+*.docx
+app-example

@@ -1,20 +1,32 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { AdminScreen, Pill, PrimaryButton, SectionTitle, sharedStyles } from '@/components/admin-ui';
-import { BrandColors } from '@/constants/theme';
-import type { ProductRecord } from '@/database/models';
-import { updateProductPrice } from '@/database/repositories/price-repository';
-import { DEFAULT_STORE_ID, DEMO_ADMIN_USER_ID, DEMO_DEVICE_ID } from '@/database/seed';
-import { useLocalProducts } from '@/hooks/use-local-products';
-
-function formatPricingUnit(product: ProductRecord) {
-  if (product.baseUnit === 'gram' && product.pricingQuantity === 1000) return 'kg';
-  if (product.baseUnit === 'gram') return `${product.pricingQuantity} g`;
-  if (product.pricingQuantity === 1) return 'unidad';
-  return `${product.pricingQuantity} un.`;
-}
+import {
+  AdminScreen,
+  Pill,
+  PrimaryButton,
+  SectionTitle,
+  sharedStyles,
+} from "@/components/admin-ui";
+import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
+import {
+  BrandColors,
+  ComponentMetrics,
+  ControlSize,
+  Interaction,
+  Radius,
+  Spacing,
+  Typography,
+} from "@/constants/theme";
+import { useLocalOperator } from "@/context/local-operator-context";
+import type { ProductRecord } from "@/database/models";
+import { updateProductPrice } from "@/database/repositories/price-repository";
+import { DEFAULT_STORE_ID } from "@/database/seed";
+import { useLocalProducts } from "@/hooks/use-local-products";
+import { formatSoles } from "@/lib/money";
+import { formatPricingUnit } from "@/lib/units";
+import { getOperatorErrorMessage } from "@/lib/user-facing-error";
 
 function PriceEditor({
   product,
@@ -25,9 +37,12 @@ function PriceEditor({
 }) {
   const [value, setValue] = useState((product.priceCents / 100).toFixed(2));
   const [isSaving, setIsSaving] = useState(false);
-  const parsedValue = Number(value.replace(',', '.'));
+  const parsedValue = Number(value.replace(",", "."));
   const parsedCents = Math.round(parsedValue * 100);
-  const valid = Number.isFinite(parsedValue) && parsedValue > 0 && Number.isSafeInteger(parsedCents);
+  const valid =
+    Number.isFinite(parsedValue) &&
+    parsedValue > 0 &&
+    Number.isSafeInteger(parsedCents);
   const changed = valid && parsedCents !== product.priceCents;
   const pricingUnit = formatPricingUnit(product);
 
@@ -44,13 +59,16 @@ function PriceEditor({
       await onSave(parsedCents);
       setValue((parsedCents / 100).toFixed(2));
       Alert.alert(
-        'Precio actualizado',
-        `${product.name}\nNuevo precio: S/ ${(parsedCents / 100).toFixed(2)} por ${pricingUnit}`
+        "Precio actualizado",
+        `${product.name}\nNuevo precio: ${formatSoles(parsedCents)} por ${pricingUnit}`,
       );
     } catch (caughtError) {
       Alert.alert(
-        'No se pudo actualizar',
-        caughtError instanceof Error ? caughtError.message : 'Ocurrió un error inesperado.'
+        "No se pudo actualizar",
+        getOperatorErrorMessage(
+          caughtError,
+          "No se pudo actualizar el precio.",
+        ),
       );
     } finally {
       setIsSaving(false);
@@ -61,23 +79,40 @@ function PriceEditor({
     <View style={[sharedStyles.card, styles.priceCard]}>
       <View style={styles.productHeader}>
         <View style={styles.productIcon}>
-          <MaterialCommunityIcons name="barley" size={23} color={BrandColors.green} />
+          <MaterialCommunityIcons
+            name="barley"
+            size={23}
+            color={BrandColors.green}
+          />
         </View>
         <View style={styles.productCopy}>
           <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productMeta}>{product.sku} · {product.category}</Text>
+          <Text style={styles.productMeta}>
+            {product.sku} · {product.category}
+          </Text>
         </View>
         {changed ? <Pill label="Sin guardar" tone="gold" /> : null}
       </View>
 
       <Text style={styles.inputLabel}>Precio de venta por {pricingUnit}</Text>
       <View style={styles.editorRow}>
-        <Pressable accessibilityLabel="Reducir precio" onPress={() => adjust(-0.1)} style={styles.stepButton}>
-          <MaterialCommunityIcons name="minus" size={21} color={BrandColors.greenDark} />
+        <Pressable
+          accessibilityLabel="Reducir precio"
+          accessibilityRole="button"
+          hitSlop={Spacing.xxs}
+          onPress={() => adjust(-0.1)}
+          style={styles.stepButton}
+        >
+          <MaterialCommunityIcons
+            name="minus"
+            size={21}
+            color={BrandColors.greenDark}
+          />
         </Pressable>
         <View style={[styles.inputWrap, !valid && styles.inputInvalid]}>
           <Text style={styles.currency}>S/</Text>
           <TextInput
+            accessibilityLabel={`Precio de venta de ${product.name} por ${pricingUnit}`}
             keyboardType="decimal-pad"
             onChangeText={setValue}
             selectTextOnFocus
@@ -86,26 +121,51 @@ function PriceEditor({
           />
           <Text style={styles.unit}>/ {pricingUnit}</Text>
         </View>
-        <Pressable accessibilityLabel="Aumentar precio" onPress={() => adjust(0.1)} style={styles.stepButton}>
-          <MaterialCommunityIcons name="plus" size={21} color={BrandColors.greenDark} />
+        <Pressable
+          accessibilityLabel="Aumentar precio"
+          accessibilityRole="button"
+          hitSlop={Spacing.xxs}
+          onPress={() => adjust(0.1)}
+          style={styles.stepButton}
+        >
+          <MaterialCommunityIcons
+            name="plus"
+            size={21}
+            color={BrandColors.greenDark}
+          />
         </Pressable>
       </View>
-      {!valid ? <Text style={styles.errorText}>Ingresa un precio mayor que cero.</Text> : null}
+      {!valid ? (
+        <Text accessibilityRole="alert" style={styles.errorText}>
+          Ingresa un precio mayor que cero.
+        </Text>
+      ) : null}
       <Pressable
+        accessibilityLabel={`Guardar precio de ${product.name}`}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: !changed || isSaving, busy: isSaving }}
         disabled={!changed || isSaving}
         onPress={() => void save()}
         style={({ pressed }) => [
           styles.saveButton,
           (!changed || isSaving) && styles.saveButtonDisabled,
           pressed && changed && !isSaving && styles.pressed,
-        ]}>
+        ]}
+      >
         <MaterialCommunityIcons
           name="content-save-outline"
           size={18}
-          color={changed && !isSaving ? BrandColors.white : '#939A94'}
+          color={
+            changed && !isSaving ? BrandColors.white : BrandColors.mutedLight
+          }
         />
-        <Text style={[styles.saveText, (!changed || isSaving) && styles.saveTextDisabled]}>
-          {isSaving ? 'Guardando…' : 'Guardar precio'}
+        <Text
+          style={[
+            styles.saveText,
+            (!changed || isSaving) && styles.saveTextDisabled,
+          ]}
+        >
+          {isSaving ? "Guardando…" : "Guardar precio"}
         </Text>
       </Pressable>
     </View>
@@ -114,24 +174,35 @@ function PriceEditor({
 
 export default function PricesScreen() {
   const { database, products, isLoading, error, refresh } = useLocalProducts();
+  const { selectedUser, deviceId } = useLocalOperator();
 
   const savePrice = async (productId: string, priceCents: number) => {
+    if (!selectedUser || !deviceId) {
+      throw new Error(
+        "Selecciona un usuario local antes de actualizar precios.",
+      );
+    }
     await updateProductPrice(database, {
       storeId: DEFAULT_STORE_ID,
       productId,
       newPriceCents: priceCents,
-      actorUserId: DEMO_ADMIN_USER_ID,
-      deviceId: DEMO_DEVICE_ID,
+      actorUserId: selectedUser.id,
+      deviceId,
     });
     await refresh(false);
   };
 
   if (isLoading) {
     return (
-      <AdminScreen title="Actualización de precios" subtitle="Modifica el precio base de cada producto">
+      <AdminScreen
+        title="Actualización de precios"
+        subtitle="Modifica el precio base de cada producto"
+      >
         <View style={[sharedStyles.card, styles.feedbackCard]}>
-          <Text style={styles.feedbackTitle}>Cargando precios locales…</Text>
-          <Text style={styles.feedbackText}>Leyendo el catálogo guardado en este dispositivo.</Text>
+          <Text style={styles.feedbackTitle}>Cargando precios…</Text>
+          <Text style={styles.feedbackText}>
+            Consultando el catálogo disponible.
+          </Text>
         </View>
       </AdminScreen>
     );
@@ -139,28 +210,53 @@ export default function PricesScreen() {
 
   if (error) {
     return (
-      <AdminScreen title="Actualización de precios" subtitle="Modifica el precio base de cada producto">
+      <AdminScreen
+        title="Actualización de precios"
+        subtitle="Modifica el precio base de cada producto"
+      >
         <View style={[sharedStyles.card, styles.feedbackCard]}>
-          <Text style={styles.feedbackTitle}>No se pudieron cargar los precios</Text>
-          <Text style={styles.feedbackText}>{error.message}</Text>
-          <PrimaryButton label="Intentar nuevamente" onPress={() => void refresh()} />
+          <Text style={styles.feedbackTitle}>
+            No se pudieron cargar los precios
+          </Text>
+          <Text accessibilityRole="alert" style={styles.feedbackText}>
+            {getOperatorErrorMessage(
+              error,
+              "No se pudieron cargar los precios.",
+            )}
+          </Text>
+          <PrimaryButton
+            label="Intentar nuevamente"
+            onPress={() => void refresh()}
+          />
         </View>
       </AdminScreen>
     );
   }
 
   return (
-    <AdminScreen title="Actualización de precios" subtitle="Modifica el precio base de cada producto">
+    <AdminScreen
+      title="Actualización de precios"
+      subtitle="Modifica el precio base de cada producto"
+    >
       <View style={[sharedStyles.card, styles.infoCard]}>
         <View style={styles.infoIcon}>
-          <MaterialCommunityIcons name="information-outline" size={21} color={BrandColors.warning} />
+          <MaterialCommunityIcons
+            name="information-outline"
+            size={21}
+            color={BrandColors.warning}
+          />
         </View>
         <Text style={styles.infoText}>
-          Los cambios se guardan en SQLite, conservan su historial y quedan pendientes de sincronización.
+          Los cambios conservan su historial y se confirman de forma segura en
+          la base central.
         </Text>
       </View>
 
-      <SectionTitle action={<Text style={styles.productCount}>{products.length} productos</Text>}>
+      <SectionTitle
+        action={
+          <Text style={styles.productCount}>{products.length} productos</Text>
+        }
+      >
         Lista de precios
       </SectionTitle>
       <View style={styles.list}>
@@ -177,32 +273,106 @@ export default function PricesScreen() {
 }
 
 const styles = StyleSheet.create({
-  feedbackCard: { gap: 12, padding: 18 },
-  feedbackTitle: { color: BrandColors.text, fontSize: 15, fontWeight: '800' },
-  feedbackText: { color: BrandColors.muted, fontSize: 11, lineHeight: 17 },
-  infoCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: BrandColors.goldLight, borderColor: '#E9D994', padding: 14 },
-  infoIcon: { width: 36, height: 36, borderRadius: 11, backgroundColor: '#F1DF9D', alignItems: 'center', justifyContent: 'center', marginRight: 11 },
-  infoText: { flex: 1, color: '#6E571B', fontSize: 11, lineHeight: 16 },
-  productCount: { color: BrandColors.muted, fontSize: 11, fontWeight: '700' },
-  list: { gap: 11 },
-  priceCard: { padding: 15 },
-  productHeader: { flexDirection: 'row', alignItems: 'center' },
-  productIcon: { width: 42, height: 42, borderRadius: 13, backgroundColor: BrandColors.greenLight, alignItems: 'center', justifyContent: 'center' },
-  productCopy: { flex: 1, marginHorizontal: 11 },
-  productName: { color: BrandColors.text, fontSize: 14, fontWeight: '800' },
-  productMeta: { color: BrandColors.muted, fontSize: 10, marginTop: 3 },
-  inputLabel: { color: BrandColors.muted, fontSize: 10, fontWeight: '700', marginTop: 15, marginBottom: 7 },
-  editorRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  stepButton: { width: 42, height: 48, borderRadius: 13, borderWidth: 1, borderColor: '#C9D4CA', backgroundColor: BrandColors.greenLight, alignItems: 'center', justifyContent: 'center' },
-  inputWrap: { flex: 1, height: 48, borderRadius: 13, borderWidth: 1.5, borderColor: BrandColors.line, backgroundColor: '#FBFCFA', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 11 },
+  feedbackCard: { gap: Spacing.sm, padding: Spacing.lg },
+  feedbackTitle: { color: BrandColors.text, ...Typography.h3 },
+  feedbackText: { color: BrandColors.muted, ...Typography.caption },
+  infoCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: BrandColors.goldLight,
+    borderColor: BrandColors.goldDark,
+    padding: Spacing.md,
+  },
+  infoIcon: {
+    width: ControlSize.compact,
+    height: ControlSize.compact,
+    borderRadius: Radius.sm,
+    backgroundColor: BrandColors.goldLight,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.sm,
+  },
+  infoText: { flex: 1, color: BrandColors.warning, ...Typography.caption },
+  productCount: { color: BrandColors.muted, ...Typography.label },
+  list: { gap: Spacing.sm },
+  priceCard: { padding: Spacing.md },
+  productHeader: { flexDirection: "row", alignItems: "center" },
+  productIcon: {
+    width: ControlSize.default,
+    height: ControlSize.default,
+    borderRadius: ComponentMetrics.inputRadius,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  productCopy: { flex: 1, marginHorizontal: Spacing.sm },
+  productName: { color: BrandColors.text, ...Typography.label },
+  productMeta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  inputLabel: {
+    color: BrandColors.muted,
+    ...Typography.label,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+  },
+  editorRow: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
+  stepButton: {
+    width: ControlSize.compact,
+    height: ControlSize.compact,
+    borderRadius: Radius.sm,
+    borderWidth: 1,
+    borderColor: BrandColors.lineStrong,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  inputWrap: {
+    flex: 1,
+    minHeight: ControlSize.default,
+    borderRadius: ComponentMetrics.inputRadius,
+    borderWidth: 1.5,
+    borderColor: BrandColors.line,
+    backgroundColor: BrandColors.white,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.sm,
+  },
   inputInvalid: { borderColor: BrandColors.danger },
-  currency: { color: BrandColors.muted, fontSize: 14, fontWeight: '700', marginRight: 5 },
-  priceInput: { flex: 1, color: BrandColors.text, fontSize: 18, fontWeight: '900', paddingVertical: 0 },
-  unit: { color: BrandColors.muted, fontSize: 11, fontWeight: '700' },
-  errorText: { color: BrandColors.danger, fontSize: 10, marginTop: 5 },
-  saveButton: { height: 43, borderRadius: 12, backgroundColor: BrandColors.green, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 12 },
-  saveButtonDisabled: { backgroundColor: '#E5E8E4' },
-  saveText: { color: BrandColors.white, fontSize: 12, fontWeight: '800' },
-  saveTextDisabled: { color: '#939A94' },
-  pressed: { opacity: 0.78 },
+  currency: {
+    color: BrandColors.muted,
+    ...Typography.label,
+    marginRight: Spacing.xs,
+  },
+  priceInput: {
+    flex: 1,
+    color: BrandColors.text,
+    ...Typography.h3,
+    paddingVertical: 0,
+  },
+  unit: { color: BrandColors.muted, ...Typography.label },
+  errorText: {
+    color: BrandColors.danger,
+    ...Typography.caption,
+    marginTop: Spacing.xs,
+  },
+  saveButton: {
+    minHeight: ControlSize.default,
+    borderRadius: Radius.md,
+    backgroundColor: BrandColors.green,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  saveButtonDisabled: { backgroundColor: BrandColors.surfaceMuted },
+  saveText: { color: BrandColors.white, ...Typography.label },
+  saveTextDisabled: { color: BrandColors.mutedLight },
+  pressed: {
+    opacity: Interaction.pressedOpacity,
+    transform: [{ scale: Interaction.pressedScale }],
+  },
 });

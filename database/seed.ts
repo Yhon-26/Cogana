@@ -2,6 +2,8 @@ import type { DatabaseAdapter } from './contracts';
 
 export const DEFAULT_STORE_ID = '00000000-0000-4000-8000-000000000001';
 export const DEMO_ADMIN_USER_ID = '00000000-0000-4000-8000-000000000101';
+export const DEMO_HUSBAND_USER_ID = '00000000-0000-4000-8000-000000000102';
+export const DEMO_WIFE_USER_ID = '00000000-0000-4000-8000-000000000103';
 export const DEMO_DEVICE_ID = '00000000-0000-4000-8000-000000000201';
 
 type DemoProduct = {
@@ -27,6 +29,45 @@ const DEMO_PRODUCTS: DemoProduct[] = [
   { id: '10000000-0000-4000-8000-000000000007', sku: 'GRA-001', name: 'Quinua blanca', category: 'Granos', baseUnit: 'gram', pricingQuantity: 1000, priceCents: 1350, costCents: 990, stockQuantity: 17700, minimumStockQuantity: 5000 },
   { id: '10000000-0000-4000-8000-000000000008', sku: 'ABR-003', name: 'Atún en lata', category: 'Abarrotes', baseUnit: 'unit', pricingQuantity: 1, priceCents: 650, costCents: 480, stockQuantity: 24, minimumStockQuantity: 6 },
 ];
+
+const DEMO_USERS = [
+  {
+    id: DEMO_ADMIN_USER_ID,
+    displayName: 'Administrador',
+    role: 'administrator',
+  },
+  {
+    id: DEMO_HUSBAND_USER_ID,
+    displayName: 'Vendedor esposo',
+    role: 'seller',
+  },
+  {
+    id: DEMO_WIFE_USER_ID,
+    displayName: 'Vendedora esposa',
+    role: 'seller',
+  },
+] as const;
+
+const DEMO_PRESENTATIONS = [
+  {
+    id: '20000000-0000-4000-8000-000000000001',
+    productId: '10000000-0000-4000-8000-000000000008',
+    sku: 'ABR-003-PACK6',
+    name: 'Paquete de 6 latas',
+    type: 'package',
+    quantityInBaseUnits: 6,
+    fixedPriceCents: 3600,
+  },
+  {
+    id: '20000000-0000-4000-8000-000000000002',
+    productId: '10000000-0000-4000-8000-000000000005',
+    sku: 'ABR-001-S50',
+    name: 'Saco de 50 kg',
+    type: 'sack',
+    quantityInBaseUnits: 50000,
+    fixedPriceCents: 22000,
+  },
+] as const;
 
 type CountRow = {
   total: number;
@@ -63,6 +104,76 @@ export async function seedDemoProductsIfEmpty(database: DatabaseAdapter) {
           product.costCents,
           product.stockQuantity,
           product.minimumStockQuantity,
+          timestamp,
+          timestamp,
+        ]
+      );
+    }
+  });
+}
+
+export async function seedLocalUsersIfEmpty(database: DatabaseAdapter) {
+  const result = await database.getFirst<CountRow>('SELECT COUNT(*) AS total FROM local_users');
+  if ((result?.total ?? 0) > 0) return;
+
+  const timestamp = new Date().toISOString();
+
+  await database.transaction(async (transaction) => {
+    const countInsideTransaction = await transaction.getFirst<CountRow>(
+      'SELECT COUNT(*) AS total FROM local_users'
+    );
+    if ((countInsideTransaction?.total ?? 0) > 0) return;
+
+    for (const user of DEMO_USERS) {
+      await transaction.run(
+        `INSERT INTO local_users (
+          id, store_id, display_name, role,
+          pin_hash, pin_salt, pin_algorithm, is_active,
+          created_at, updated_at, version
+        ) VALUES (?, ?, ?, ?, NULL, NULL, NULL, 1, ?, ?, 1)`,
+        [
+          user.id,
+          DEFAULT_STORE_ID,
+          user.displayName,
+          user.role,
+          timestamp,
+          timestamp,
+        ]
+      );
+    }
+  });
+}
+
+export async function seedDemoPresentationsIfEmpty(database: DatabaseAdapter) {
+  const result = await database.getFirst<CountRow>(
+    'SELECT COUNT(*) AS total FROM product_presentations'
+  );
+  if ((result?.total ?? 0) > 0) return;
+
+  const timestamp = new Date().toISOString();
+
+  await database.transaction(async (transaction) => {
+    const countInsideTransaction = await transaction.getFirst<CountRow>(
+      'SELECT COUNT(*) AS total FROM product_presentations'
+    );
+    if ((countInsideTransaction?.total ?? 0) > 0) return;
+
+    for (const presentation of DEMO_PRESENTATIONS) {
+      await transaction.run(
+        `INSERT INTO product_presentations (
+          id, store_id, product_id, sku, name, presentation_type,
+          quantity_in_base_units, fixed_price_cents, is_active,
+          created_at, updated_at, version
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, 1)`,
+        [
+          presentation.id,
+          DEFAULT_STORE_ID,
+          presentation.productId,
+          presentation.sku,
+          presentation.name,
+          presentation.type,
+          presentation.quantityInBaseUnits,
+          presentation.fixedPriceCents,
           timestamp,
           timestamp,
         ]

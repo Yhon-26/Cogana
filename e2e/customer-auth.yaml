@@ -1,0 +1,45 @@
+# Test de Autenticacion de Cliente - Coguana
+# Flujo completo: inicio de sesion, registro, recuperacion de contrasena
+appId: com.yhonq.coguanaapp
+---
+# 1. NAVEGAR A CLIENTE
+- launchApp
+- assertVisible: "COGUANA"
+- scrollUntilVisible:
+    element: "Comprar como cliente"
+    direction: DOWN
+- tapOn: "Comprar como cliente"
+
+# 2. FORMULARIO DE INICIO DE SESION
+- assertVisible: "Correo"
+- assertVisible: "Contrase\u00f1a"
+- assertVisible: "Entrar"
+- assertVisible: "Registrarme"
+
+# 3. PROBAR CAMPOS VACIOS
+- tapOn: "Entrar"
+
+# 4. NAVEGAR A REGISTRO
+- tapOn: "Registrarme"
+- assertVisible: "Nombre completo"
+- assertVisible: "Tel\u00e9fono"
+- assertVisible: "Correo"
+- assertVisible: "Contrase\u00f1a"
+- scrollUntilVisible:
+    element: "Crear cuenta"
+    direction: DOWN
+- assertVisible: "Crear cuenta"
+
+# 5. VOLVER A INICIO DE SESION
+- tapOn: "Iniciar sesi\u00f3n"
+- assertVisible: "Correo"
+
+# 6. PROBAR RECUPERACION DE CONTRASENA
+- tapOn: "Olvid\u00e9 mi contrase\u00f1a"
+- assertVisible: "Correo electr\u00f3nico"
+- assertVisible: "Enviar enlace"
+
+# 7. VOLVER AL INICIO
+- back
+- back
+- assertVisible: "COGUANA"

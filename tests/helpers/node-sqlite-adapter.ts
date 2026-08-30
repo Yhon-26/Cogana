@@ -7,7 +7,11 @@ import type {
 } from '../../database/contracts';
 
 export class NodeSQLiteAdapter implements DatabaseAdapter {
-  private readonly database = new DatabaseSync(':memory:');
+  private readonly database: DatabaseSync;
+
+  constructor(filename = ':memory:') {
+    this.database = new DatabaseSync(filename);
+  }
 
   close() {
     this.database.close();

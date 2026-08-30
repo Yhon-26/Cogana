@@ -1,27 +1,19 @@
-type CryptoWithRandomUuid = Crypto & {
-  randomUUID?: () => string;
-};
-
 export function createId() {
-  const cryptoObject = globalThis.crypto as CryptoWithRandomUuid | undefined;
-  if (cryptoObject?.randomUUID) {
-    return cryptoObject.randomUUID();
+  if (typeof globalThis.crypto?.randomUUID === 'function') {
+    return globalThis.crypto.randomUUID();
   }
-
-  let seed = Date.now();
-  let highResolutionSeed = typeof performance !== 'undefined' ? performance.now() * 1000 : 0;
-
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (character) => {
-    let random = Math.random() * 16;
-    if (seed > 0) {
-      random = (seed + random) % 16;
-      seed = Math.floor(seed / 16);
-    } else {
-      random = (highResolutionSeed + random) % 16;
-      highResolutionSeed = Math.floor(highResolutionSeed / 16);
-    }
-
-    const value = character === 'x' ? random : (random % 4) + 8;
-    return Math.floor(value).toString(16);
-  });
+  if (typeof globalThis.crypto?.getRandomValues !== 'function') {
+    throw new Error('El entorno no ofrece un generador criptografico seguro.');
+  }
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'));
+  return [
+    hex.slice(0, 4).join(''),
+    hex.slice(4, 6).join(''),
+    hex.slice(6, 8).join(''),
+    hex.slice(8, 10).join(''),
+    hex.slice(10, 16).join(''),
+  ].join('-');
 }

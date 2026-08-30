@@ -1,0 +1,557 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-02T05:38:03.799Z",
+  "title": "Design System: Coguana",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "neutral",
+        "displayName": "Tinta Semilla",
+        "canonical": "#132019",
+        "tonalRamp": [
+          "oklch(15% 0.023 160.4)",
+          "oklch(27% 0.023 160.4)",
+          "oklch(39% 0.023 160.4)",
+          "oklch(51% 0.023 160.4)",
+          "oklch(63% 0.023 160.4)",
+          "oklch(75% 0.023 160.4)",
+          "oklch(87% 0.023 160.4)",
+          "oklch(95% 0.023 160.4)"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Tinta Semilla Suave",
+        "canonical": "#1D2D23",
+        "tonalRamp": [
+          "oklch(15% 0.028 156.6)",
+          "oklch(27% 0.028 156.6)",
+          "oklch(39% 0.028 156.6)",
+          "oklch(51% 0.028 156.6)",
+          "oklch(63% 0.028 156.6)",
+          "oklch(75% 0.028 156.6)",
+          "oklch(87% 0.028 156.6)",
+          "oklch(95% 0.028 156.6)"
+        ]
+      },
+      "green": {
+        "role": "primary",
+        "displayName": "Verde Cosecha",
+        "canonical": "#2E7546",
+        "tonalRamp": [
+          "oklch(15% 0.103 152)",
+          "oklch(27% 0.103 152)",
+          "oklch(39% 0.103 152)",
+          "oklch(51% 0.103 152)",
+          "oklch(63% 0.103 152)",
+          "oklch(75% 0.103 152)",
+          "oklch(87% 0.103 152)",
+          "oklch(95% 0.103 152)"
+        ]
+      },
+      "green-dark": {
+        "role": "primary",
+        "displayName": "Verde Profundo",
+        "canonical": "#1D5634",
+        "tonalRamp": [
+          "oklch(15% 0.083 154)",
+          "oklch(27% 0.083 154)",
+          "oklch(39% 0.083 154)",
+          "oklch(51% 0.083 154)",
+          "oklch(63% 0.083 154)",
+          "oklch(75% 0.083 154)",
+          "oklch(87% 0.083 154)",
+          "oklch(95% 0.083 154)"
+        ]
+      },
+      "green-mid": {
+        "role": "primary",
+        "displayName": "Verde Cosecha Medio",
+        "canonical": "#D4E8D8",
+        "tonalRamp": [
+          "oklch(15% 0.03 151.5)",
+          "oklch(27% 0.03 151.5)",
+          "oklch(39% 0.03 151.5)",
+          "oklch(51% 0.03 151.5)",
+          "oklch(63% 0.03 151.5)",
+          "oklch(75% 0.03 151.5)",
+          "oklch(87% 0.03 151.5)",
+          "oklch(95% 0.03 151.5)"
+        ]
+      },
+      "green-light": {
+        "role": "primary",
+        "displayName": "Rocío Verde",
+        "canonical": "#E8F3EA",
+        "tonalRamp": [
+          "oklch(15% 0.017 151.1)",
+          "oklch(27% 0.017 151.1)",
+          "oklch(39% 0.017 151.1)",
+          "oklch(51% 0.017 151.1)",
+          "oklch(63% 0.017 151.1)",
+          "oklch(75% 0.017 151.1)",
+          "oklch(87% 0.017 151.1)",
+          "oklch(95% 0.017 151.1)"
+        ]
+      },
+      "gold": {
+        "role": "secondary",
+        "displayName": "Oro Grano",
+        "canonical": "#F0B43C",
+        "tonalRamp": [
+          "oklch(15% 0.147 80.6)",
+          "oklch(27% 0.147 80.6)",
+          "oklch(39% 0.147 80.6)",
+          "oklch(51% 0.147 80.6)",
+          "oklch(63% 0.147 80.6)",
+          "oklch(75% 0.147 80.6)",
+          "oklch(87% 0.147 80.6)",
+          "oklch(95% 0.147 80.6)"
+        ]
+      },
+      "gold-dark": {
+        "role": "secondary",
+        "displayName": "Oro Tostado",
+        "canonical": "#9B6912",
+        "tonalRamp": [
+          "oklch(15% 0.113 74.3)",
+          "oklch(27% 0.113 74.3)",
+          "oklch(39% 0.113 74.3)",
+          "oklch(51% 0.113 74.3)",
+          "oklch(63% 0.113 74.3)",
+          "oklch(75% 0.113 74.3)",
+          "oklch(87% 0.113 74.3)",
+          "oklch(95% 0.113 74.3)"
+        ]
+      },
+      "gold-light": {
+        "role": "secondary",
+        "displayName": "Luz de Grano",
+        "canonical": "#FFF2CD",
+        "tonalRamp": [
+          "oklch(15% 0.05 91)",
+          "oklch(27% 0.05 91)",
+          "oklch(39% 0.05 91)",
+          "oklch(51% 0.05 91)",
+          "oklch(63% 0.05 91)",
+          "oklch(75% 0.05 91)",
+          "oklch(87% 0.05 91)",
+          "oklch(95% 0.05 91)"
+        ]
+      },
+      "cream": {
+        "role": "neutral",
+        "displayName": "Crema Saco",
+        "canonical": "#F8F6EF",
+        "tonalRamp": [
+          "oklch(15% 0.01 93.6)",
+          "oklch(27% 0.01 93.6)",
+          "oklch(39% 0.01 93.6)",
+          "oklch(51% 0.01 93.6)",
+          "oklch(63% 0.01 93.6)",
+          "oklch(75% 0.01 93.6)",
+          "oklch(87% 0.01 93.6)",
+          "oklch(95% 0.01 93.6)"
+        ]
+      },
+      "sand": {
+        "role": "neutral",
+        "displayName": "Arena de Yute",
+        "canonical": "#EFE9DC",
+        "tonalRamp": [
+          "oklch(15% 0.018 86.1)",
+          "oklch(27% 0.018 86.1)",
+          "oklch(39% 0.018 86.1)",
+          "oklch(51% 0.018 86.1)",
+          "oklch(63% 0.018 86.1)",
+          "oklch(75% 0.018 86.1)",
+          "oklch(87% 0.018 86.1)",
+          "oklch(95% 0.018 86.1)"
+        ]
+      },
+      "white": {
+        "role": "neutral",
+        "displayName": "Blanco Mostrador",
+        "canonical": "#FFFFFF",
+        "tonalRamp": [
+          "oklch(15% 0 0)",
+          "oklch(27% 0 0)",
+          "oklch(39% 0 0)",
+          "oklch(51% 0 0)",
+          "oklch(63% 0 0)",
+          "oklch(75% 0 0)",
+          "oklch(87% 0 0)",
+          "oklch(95% 0 0)"
+        ]
+      },
+      "surface-muted": {
+        "role": "neutral",
+        "displayName": "Superficie Hoja",
+        "canonical": "#F0F2ED",
+        "tonalRamp": [
+          "oklch(15% 0.007 124.4)",
+          "oklch(27% 0.007 124.4)",
+          "oklch(39% 0.007 124.4)",
+          "oklch(51% 0.007 124.4)",
+          "oklch(63% 0.007 124.4)",
+          "oklch(75% 0.007 124.4)",
+          "oklch(87% 0.007 124.4)",
+          "oklch(95% 0.007 124.4)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Texto Semilla",
+        "canonical": "#17231B",
+        "tonalRamp": [
+          "oklch(15% 0.023 155.2)",
+          "oklch(27% 0.023 155.2)",
+          "oklch(39% 0.023 155.2)",
+          "oklch(51% 0.023 155.2)",
+          "oklch(63% 0.023 155.2)",
+          "oklch(75% 0.023 155.2)",
+          "oklch(87% 0.023 155.2)",
+          "oklch(95% 0.023 155.2)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Verde Ceniza",
+        "canonical": "#5F6B62",
+        "tonalRamp": [
+          "oklch(15% 0.02 153.2)",
+          "oklch(27% 0.02 153.2)",
+          "oklch(39% 0.02 153.2)",
+          "oklch(51% 0.02 153.2)",
+          "oklch(63% 0.02 153.2)",
+          "oklch(75% 0.02 153.2)",
+          "oklch(87% 0.02 153.2)",
+          "oklch(95% 0.02 153.2)"
+        ]
+      },
+      "muted-light": {
+        "role": "neutral",
+        "displayName": "Ceniza Suave",
+        "canonical": "#8A948C",
+        "tonalRamp": [
+          "oklch(15% 0.016 151.6)",
+          "oklch(27% 0.016 151.6)",
+          "oklch(39% 0.016 151.6)",
+          "oklch(51% 0.016 151.6)",
+          "oklch(63% 0.016 151.6)",
+          "oklch(75% 0.016 151.6)",
+          "oklch(87% 0.016 151.6)",
+          "oklch(95% 0.016 151.6)"
+        ]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Línea Hoja",
+        "canonical": "#E1E5DE",
+        "tonalRamp": [
+          "oklch(15% 0.01 131.4)",
+          "oklch(27% 0.01 131.4)",
+          "oklch(39% 0.01 131.4)",
+          "oklch(51% 0.01 131.4)",
+          "oklch(63% 0.01 131.4)",
+          "oklch(75% 0.01 131.4)",
+          "oklch(87% 0.01 131.4)",
+          "oklch(95% 0.01 131.4)"
+        ]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Línea Firme",
+        "canonical": "#CBD2CA",
+        "tonalRamp": [
+          "oklch(15% 0.013 141.8)",
+          "oklch(27% 0.013 141.8)",
+          "oklch(39% 0.013 141.8)",
+          "oklch(51% 0.013 141.8)",
+          "oklch(63% 0.013 141.8)",
+          "oklch(75% 0.013 141.8)",
+          "oklch(87% 0.013 141.8)",
+          "oklch(95% 0.013 141.8)"
+        ]
+      },
+      "danger": {
+        "role": "error",
+        "displayName": "Rojo Corrección",
+        "canonical": "#A23F37",
+        "tonalRamp": [
+          "oklch(15% 0.133 27.5)",
+          "oklch(27% 0.133 27.5)",
+          "oklch(39% 0.133 27.5)",
+          "oklch(51% 0.133 27.5)",
+          "oklch(63% 0.133 27.5)",
+          "oklch(75% 0.133 27.5)",
+          "oklch(87% 0.133 27.5)",
+          "oklch(95% 0.133 27.5)"
+        ]
+      },
+      "danger-light": {
+        "role": "error",
+        "displayName": "Rubor de Error",
+        "canonical": "#FBEAE7",
+        "tonalRamp": [
+          "oklch(15% 0.019 29.5)",
+          "oklch(27% 0.019 29.5)",
+          "oklch(39% 0.019 29.5)",
+          "oklch(51% 0.019 29.5)",
+          "oklch(63% 0.019 29.5)",
+          "oklch(75% 0.019 29.5)",
+          "oklch(87% 0.019 29.5)",
+          "oklch(95% 0.019 29.5)"
+        ]
+      },
+      "warning": {
+        "role": "warning",
+        "displayName": "Ocre Alerta",
+        "canonical": "#836115",
+        "tonalRamp": [
+          "oklch(15% 0.098 82.3)",
+          "oklch(27% 0.098 82.3)",
+          "oklch(39% 0.098 82.3)",
+          "oklch(51% 0.098 82.3)",
+          "oklch(63% 0.098 82.3)",
+          "oklch(75% 0.098 82.3)",
+          "oklch(87% 0.098 82.3)",
+          "oklch(95% 0.098 82.3)"
+        ]
+      },
+      "success": {
+        "role": "success",
+        "displayName": "Verde Confirmación",
+        "canonical": "#237142",
+        "tonalRamp": [
+          "oklch(15% 0.107 153.1)",
+          "oklch(27% 0.107 153.1)",
+          "oklch(39% 0.107 153.1)",
+          "oklch(51% 0.107 153.1)",
+          "oklch(63% 0.107 153.1)",
+          "oklch(75% 0.107 153.1)",
+          "oklch(87% 0.107 153.1)",
+          "oklch(95% 0.107 153.1)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Bienvenida, total dominante o mensaje excepcional."
+      },
+      "h1": {
+        "displayName": "Título de pantalla",
+        "purpose": "Encabezado principal de cada destino."
+      },
+      "h2": {
+        "displayName": "Encabezado mayor",
+        "purpose": "Jerarquía principal dentro de una superficie."
+      },
+      "h3": {
+        "displayName": "Título de sección",
+        "purpose": "Secciones y tarjetas destacadas."
+      },
+      "body-large": {
+        "displayName": "Cuerpo amplio",
+        "purpose": "Introducciones y orientación."
+      },
+      "body": {
+        "displayName": "Cuerpo",
+        "purpose": "Lectura, instrucciones y formularios."
+      },
+      "label": {
+        "displayName": "Etiqueta",
+        "purpose": "Botones, valores breves y acciones."
+      },
+      "caption": {
+        "displayName": "Nota",
+        "purpose": "Metadatos, ayuda y estados secundarios."
+      },
+      "overline": {
+        "displayName": "Sobrelinea",
+        "purpose": "Contexto breve en mayúsculas sobre títulos."
+      }
+    },
+    "shadows": [
+      {
+        "name": "ambient-card",
+        "value": "0 2px 10px rgba(19, 32, 25, 0.06)",
+        "purpose": "Elevación opcional para un dato o tarjeta destacada."
+      },
+      {
+        "name": "dock-upward",
+        "value": "0 -3px 12px rgba(19, 32, 25, 0.08)",
+        "purpose": "Pie fijo o acción persistente sobre contenido desplazable."
+      },
+      {
+        "name": "tab-upward",
+        "value": "0 -3px 10px rgba(19, 32, 25, 0.07)",
+        "purpose": "Navegación inferior del personal."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press-compress",
+        "value": "opacity 0.82–0.86; scale(0.99)",
+        "purpose": "Respuesta inmediata de botones y tarjetas presionables."
+      },
+      {
+        "name": "reduce-motion-stack",
+        "value": "Expo Router animation: none",
+        "purpose": "Desactiva la transición del stack cuando la preferencia Reduce Motion está activa."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Acción dominante de una tarea operativa o comercial.",
+      "html": "<button class=\"ds-btn-primary\" type=\"button\">Confirmar venta</button>",
+      "css": ".ds-btn-primary { min-height: 56px; padding: 0 20px; border: 0; border-radius: 14px; background: #2E7546; color: #FFFFFF; font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; font-size: 13px; line-height: 18px; font-weight: 700; cursor: pointer; } .ds-btn-primary:hover { opacity: .92; } .ds-btn-primary:focus-visible { outline: 3px solid #D4E8D8; outline-offset: 2px; } .ds-btn-primary:active { opacity: .82; transform: scale(.99); } .ds-btn-primary:disabled { opacity: .42; cursor: not-allowed; }"
+    },
+    {
+      "name": "Accent Button",
+      "kind": "button",
+      "refersTo": "button-accent",
+      "description": "Énfasis comercial para compra, total o llamada excepcional.",
+      "html": "<button class=\"ds-btn-accent\" type=\"button\">Comprar ahora</button>",
+      "css": ".ds-btn-accent { min-height: 56px; padding: 0 20px; border: 0; border-radius: 14px; background: #F0B43C; color: #132019; font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; font-size: 13px; line-height: 18px; font-weight: 700; cursor: pointer; } .ds-btn-accent:hover { opacity: .92; } .ds-btn-accent:focus-visible { outline: 3px solid #FFF2CD; outline-offset: 2px; } .ds-btn-accent:active { opacity: .86; transform: scale(.99); } .ds-btn-accent:disabled { opacity: .4; cursor: not-allowed; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Alternativa visible que no compite con la acción principal.",
+      "html": "<button class=\"ds-btn-secondary\" type=\"button\">Guardar borrador</button>",
+      "css": ".ds-btn-secondary { min-height: 56px; padding: 0 20px; border: 1px solid #2E7546; border-radius: 14px; background: #FFFFFF; color: #1D5634; font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; font-size: 13px; line-height: 18px; font-weight: 700; cursor: pointer; } .ds-btn-secondary:hover { background: #E8F3EA; } .ds-btn-secondary:focus-visible { outline: 3px solid #D4E8D8; outline-offset: 2px; } .ds-btn-secondary:active { opacity: .86; transform: scale(.99); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Acción contextual suave dentro de una superficie.",
+      "html": "<button class=\"ds-btn-ghost\" type=\"button\">Ver inventario</button>",
+      "css": ".ds-btn-ghost { min-height: 56px; padding: 0 20px; border: 0; border-radius: 14px; background: #E8F3EA; color: #1D5634; font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; font-size: 13px; line-height: 18px; font-weight: 700; cursor: pointer; } .ds-btn-ghost:hover { background: #D4E8D8; } .ds-btn-ghost:focus-visible { outline: 3px solid #2E7546; outline-offset: 2px; } .ds-btn-ghost:active { opacity: .86; transform: scale(.99); }"
+    },
+    {
+      "name": "Standard Text Field",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Campo claro con etiqueta persistente, ayuda y foco visible.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Precio por kg</span><input class=\"ds-input\" value=\"18.50\" aria-describedby=\"ds-field-help\"><small id=\"ds-field-help\" class=\"ds-field-help\">Importe en soles</small></label>",
+      "css": ".ds-field { display: grid; gap: 6px; color: #17231B; font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; } .ds-field-label { font-size: 12px; line-height: 16px; font-weight: 700; } .ds-input { min-height: 48px; padding: 0 13px; border: 1px solid #E1E5DE; border-radius: 13px; background: #FFFFFF; color: #17231B; font: inherit; } .ds-input:hover { border-color: #CBD2CA; } .ds-input:focus-visible { border-color: #2E7546; outline: 3px solid #D4E8D8; outline-offset: 1px; } .ds-input:disabled { background: #F0F2ED; color: #5F6B62; } .ds-field-help { color: #5F6B62; font-size: 12px; line-height: 16px; }"
+    },
+    {
+      "name": "Status Pills",
+      "kind": "chip",
+      "refersTo": "pill-green",
+      "description": "Familia semántica compacta para progreso, revisión, error y cierre.",
+      "html": "<div class=\"ds-pill-row\"><span class=\"ds-pill ds-pill-green\">Preparando</span><span class=\"ds-pill ds-pill-gold\">Revisar peso</span><span class=\"ds-pill ds-pill-danger\">Cancelado</span><span class=\"ds-pill ds-pill-neutral\">Entregado</span></div>",
+      "css": ".ds-pill-row { display: flex; flex-wrap: wrap; gap: 8px; font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; } .ds-pill { display: inline-flex; align-items: center; min-height: 26px; padding: 5px 10px; border-radius: 999px; font-size: 12px; line-height: 16px; font-weight: 700; } .ds-pill-green { background: #E8F3EA; color: #1D5634; } .ds-pill-gold { background: #FFF2CD; color: #836115; } .ds-pill-danger { background: #FBEAE7; color: #A23F37; } .ds-pill-neutral { background: #F0F2ED; color: #5F6B62; }"
+    },
+    {
+      "name": "Bordered Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Contenedor base casi plano para datos y tareas relacionadas.",
+      "html": "<article class=\"ds-card\"><div><span class=\"ds-card-overline\">INVENTARIO</span><h3>Frejol canario</h3></div><strong>12.5 kg</strong><p>Stock disponible en Santa Anita.</p></article>",
+      "css": ".ds-card { max-width: 360px; padding: 16px; border: 1px solid #E1E5DE; border-radius: 18px; background: #FFFFFF; color: #17231B; font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; } .ds-card:hover { border-color: #CBD2CA; } .ds-card:focus-within { outline: 3px solid #D4E8D8; outline-offset: 2px; } .ds-card-overline { color: #2E7546; font-size: 11px; line-height: 14px; font-weight: 800; letter-spacing: 1.4px; } .ds-card h3 { margin: 5px 0 12px; font-size: 18px; line-height: 24px; } .ds-card strong { color: #1D5634; font-size: 22px; line-height: 28px; } .ds-card p { margin: 6px 0 0; color: #5F6B62; font-size: 12px; line-height: 16px; }"
+    },
+    {
+      "name": "Quantity Stepper",
+      "kind": "custom",
+      "refersTo": "quantity-stepper",
+      "description": "Control táctil para aumentar o disminuir una cantidad sin perder la unidad.",
+      "html": "<div class=\"ds-stepper\" aria-label=\"Cantidad en kilogramos\"><button type=\"button\" aria-label=\"Disminuir cantidad\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 12h14\"/></svg></button><strong>1 kg</strong><button type=\"button\" aria-label=\"Aumentar cantidad\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 5v14M5 12h14\"/></svg></button></div>",
+      "css": ".ds-stepper { display: inline-flex; min-height: 48px; align-items: center; gap: 8px; padding: 4px; border-radius: 14px; background: #F0F2ED; color: #17231B; font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; } .ds-stepper button { width: 40px; height: 40px; display: grid; place-items: center; border: 0; border-radius: 10px; background: #FFFFFF; color: #1D5634; cursor: pointer; } .ds-stepper button:hover { background: #E8F3EA; } .ds-stepper button:focus-visible { outline: 3px solid #D4E8D8; outline-offset: 1px; } .ds-stepper button:active { opacity: .84; transform: scale(.99); } .ds-stepper svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; } .ds-stepper strong { min-width: 58px; text-align: center; font-size: 13px; line-height: 18px; }"
+    },
+    {
+      "name": "Operator Bottom Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-item-active",
+      "description": "Navegación persistente del personal con icono y etiqueta juntos.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Operación\"><button class=\"ds-nav-item ds-nav-active\" aria-current=\"page\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 11 12 3l9 8v10h-6v-6H9v6H3z\"/></svg><span>Panel</span></button><button class=\"ds-nav-item\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 4h16v16H4zM4 9h16M9 4v16\"/></svg><span>Venta</span></button><button class=\"ds-nav-item\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M4 7h16v13H4zM7 7V4h10v3M8 12h8\"/></svg><span>Inventario</span></button></nav>",
+      "css": ".ds-nav { display: flex; min-height: 70px; gap: 4px; padding: 6px 8px 4px; border-top: 1px solid #E1E5DE; background: #FFFFFF; box-shadow: 0 -3px 10px rgba(19, 32, 25, .07); font-family: system-ui, -apple-system, \"Segoe UI\", sans-serif; } .ds-nav-item { min-height: 58px; flex: 1; display: grid; place-items: center; align-content: center; gap: 2px; border: 0; border-radius: 16px; background: transparent; color: #5F6B62; font-size: 11px; line-height: 14px; font-weight: 700; cursor: pointer; } .ds-nav-item:hover { background: #F0F2ED; } .ds-nav-item:focus-visible { outline: 3px solid #D4E8D8; outline-offset: -1px; } .ds-nav-item:active { opacity: .72; } .ds-nav-active { background: #E8F3EA; color: #1D5634; font-weight: 800; } .ds-nav-item svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }"
+    },
+    {
+      "name": "Product Visual",
+      "kind": "custom",
+      "refersTo": "product-visual-default",
+      "description": "Placeholder categórico coherente cuando todavía no existe fotografía real.",
+      "html": "<div class=\"ds-product-visual\" aria-hidden=\"true\"><span></span><svg viewBox=\"0 0 64 64\"><path d=\"M32 53V17M32 25c-8 0-13-5-13-12 8 0 13 5 13 12ZM32 34c8 0 13-5 13-12-8 0-13 5-13 12ZM32 43c-8 0-13-5-13-12 8 0 13 5 13 12Z\"/></svg></div>",
+      "css": ".ds-product-visual { position: relative; width: 64px; height: 64px; display: grid; place-items: center; overflow: hidden; border-radius: 19px; background: #E8F3EA; color: #2E7546; } .ds-product-visual span { position: absolute; top: -3px; right: -3px; width: 13px; height: 13px; border-radius: 999px; background: #2E7546; opacity: .16; } .ds-product-visual svg { width: 34px; height: 34px; fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "La Despensa Viva",
+    "overview": "La Despensa Viva convierte el ritmo de una tienda de abarrotes en una interfaz cálida y precisa: fondos crema como espacio de trabajo, superficies blancas para contener tareas, verdes de cosecha para la acción y dorados de grano para el énfasis comercial. Debe sentirse natural, cálida, confiable, ágil y ordenada; nunca fría o corporativa, rústica o improvisada, ni intercambiable con un SaaS genérico.\n\nLa densidad cambia con la audiencia. La operación interna es compacta y orientada a cifras; la experiencia de compra respira más, pero ambas comparten geometría suave, tipografía de sistema, iconos consistentes y estados cromáticos inequívocos. El logo oficial aporta hojas, grano, lima, dorado y una base oscura; la interfaz actual traduce esa energía a un verde bosque más sobrio y reserva la caligrafía para la marca, no para controles.\n\nEste documento carboniza el sistema compartido que existe en constants/theme.ts y en los componentes comunes. Las variantes locales de tamaño, peso, radio y espaciado que aparecen en pantallas antiguas son deuda de consolidación, no nuevos tokens. El logo oficial facilitado sigue fuera del repositorio y la app aún muestra un brote genérico como marca temporal.",
+    "keyCharacteristics": [
+      "Lienzo cálido y claro con superficies blancas de trabajo.",
+      "Verde de cosecha para acciones, verde pálido para selección y oro para énfasis comercial selectivo.",
+      "Tipografía nativa de sistema con jerarquía operativa firme.",
+      "Geometría suave y controles táctiles de 48–56 px.",
+      "Capas tonales con elevación estructural escasa."
+    ],
+    "rules": [
+      {
+        "name": "The Harvest Hierarchy Rule",
+        "body": "El verde dirige la tarea; el oro destaca una oportunidad, total o advertencia. No deben competir como dos acciones primarias en el mismo bloque.",
+        "section": "colors"
+      },
+      {
+        "name": "The Logo Accent Rule",
+        "body": "El lima luminoso y los acabados tridimensionales pertenecen hoy al logo oficial. No se convierten en colores o efectos generales de interfaz sin una actualización deliberada de los tokens.",
+        "section": "colors"
+      },
+      {
+        "name": "The Wordmark Boundary Rule",
+        "body": "La caligrafía de Coguana vive dentro del logo; toda interfaz, cifra, etiqueta y navegación usa tipografía de sistema.",
+        "section": "typography"
+      },
+      {
+        "name": "The Numbers First Rule",
+        "body": "Peso, unidad, precio y total mantienen tamaño y contraste suficientes para decidir de un vistazo; el texto auxiliar nunca desplaza la cifra operativa.",
+        "section": "typography"
+      },
+      {
+        "name": "The One-Hand Rhythm Rule",
+        "body": "La tarea principal y sus cifras caben en una lectura vertical predecible; las acciones críticas no se esconden detrás de densidad decorativa.",
+        "section": "layout"
+      },
+      {
+        "name": "The Structural Shadow Rule",
+        "body": "Una sombra explica superposición o persistencia; nunca se añade solo para adornar una tarjeta.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Tonal First Rule",
+        "body": "Antes de elevar, separar con crema, blanco, verde pálido, borde o espacio.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Soft Utility Rule",
+        "body": "Las curvas facilitan exploración y tacto, pero nunca convierten datos operativos en burbujas decorativas.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "**Do** usar Verde Cosecha para la siguiente acción real y Oro Grano para énfasis comercial selectivo.",
+      "**Do** mantener peso, unidad, precio de referencia y total visibles como un conjunto.",
+      "**Do** construir componentes nuevos con la escala declarada de color, espacio, radio y tipografía.",
+      "**Do** mantener controles táctiles de al menos 48 px y comunicar estados con texto, icono y color.",
+      "**Do** usar el logo oficial solo desde un archivo maestro limpio, autorizado y almacenado dentro del proyecto.",
+      "**Do** respetar safe areas y la preferencia de reducción de movimiento en toda interacción nueva."
+    ],
+    "donts": [
+      "**Don't** usar la caligrafía del logotipo como tipografía de interfaz.",
+      "**Don't** convertir el lima brillante o los relieves 3D del logo en efectos generales sin actualizar primero los tokens.",
+      "**Don't** añadir sombras a tarjetas planas que ya se separan mediante tono, borde o espacio.",
+      "**Don't** crear nuevos tamaños de 7–10 px, pesos 900 o radios intermedios para resolver jerarquía.",
+      "**Don't** presentar un modo oscuro: la implementación actual es únicamente clara.",
+      "**Don't** publicar el JPG de referencia suministrado mientras conserve marcas de agua visibles."
+    ]
+  }
+}

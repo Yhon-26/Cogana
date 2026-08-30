@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Política de Privacidad - Coguana</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      color: #1a1a1a;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #fafafa;
+    }
+    h1 { font-size: 2em; margin-bottom: 8px; color: #2F6B3A; }
+    h2 { font-size: 1.4em; margin-top: 32px; margin-bottom: 12px; color: #2F6B3A; }
+    h3 { font-size: 1.1em; margin-top: 24px; margin-bottom: 8px; color: #333; }
+    p { margin-bottom: 12px; }
+    ul, ol { margin-left: 24px; margin-bottom: 12px; }
+    li { margin-bottom: 6px; }
+    .meta { color: #666; margin-bottom: 32px; }
+    .contact { background: #f0f7f2; padding: 20px; border-radius: 8px; margin-top: 32px; }
+    .contact h3 { margin-top: 0; }
+    a { color: #2F6B3A; }
+  </style>
+</head>
+<body>
+  <h1>Política de Privacidad</h1>
+  <p class="meta">Coguana &mdash; Última actualización: 6 de agosto de 2026</p>
+
+  <h2>1. Información que recopilamos</h2>
+
+  <h3>1.1 Datos de cuenta</h3>
+  <p>Al crear una cuenta recopilamos:</p>
+  <ul>
+    <li>Nombre completo</li>
+    <li>Correo electrónico</li>
+    <li>Número de teléfono</li>
+    <li>Contraseña (almacenada de forma cifrada por Supabase Auth)</li>
+  </ul>
+
+  <h3>1.2 Datos de operación</h3>
+  <p>Durante el uso de la aplicación:</p>
+  <ul>
+    <li>Transacciones de venta y pagos</li>
+    <li>Productos, inventario y movimientos de stock</li>
+    <li>Pedidos, direcciones de entrega y seguimiento</li>
+    <li>Registros de caja, turnos y arqueos</li>
+    <li>Datos de empleados y permisos configurados por el administrador</li>
+  </ul>
+
+  <h3>1.3 Datos del dispositivo</h3>
+  <ul>
+    <li>Identificador único del dispositivo (UUID generado localmente)</li>
+    <li>Imágenes de evidencia de entrega (cuando aplica)</li>
+    <li>Datos de sincronización y diagnóstico</li>
+  </ul>
+
+  <h3>1.4 Datos que NO recopilamos</h3>
+  <ul>
+    <li>Datos de tarjeta de crédito o débito</li>
+    <li>Ubicación GPS en tiempo real</li>
+    <li>Contactos, calendario u otros datos del teléfono</li>
+    <li>Datos de navegación fuera de la aplicación</li>
+  </ul>
+
+  <h2>2. Uso de la información</h2>
+  <p>Utilizamos sus datos para:</p>
+  <ul>
+    <li>Procesar ventas, pedidos y entregas</li>
+    <li>Gestionar inventario y sincronización entre dispositivos</li>
+    <li>Autenticar operadores y controlar accesos</li>
+    <li>Generar reportes operativos para el administrador</li>
+    <li>Enviar notificaciones sobre el estado de pedidos</li>
+    <li>Mejorar la estabilidad y funcionalidad de la aplicación</li>
+  </ul>
+
+  <h2>3. Almacenamiento y seguridad</h2>
+  <ul>
+    <li>Los datos se almacenan en <strong>Supabase</strong> (PostgreSQL) con cifrado en tránsito y en reposo.</li>
+    <li>Las contraseñas son procesadas exclusivamente por <strong>Supabase Auth</strong> usando hashing seguro.</li>
+    <li>Los PINs de operadores se almacenan localmente en el dispositivo con hash PBKDF2-HMAC-SHA256 y nunca salen del teléfono.</li>
+    <li>Los tokens de sesión se guardan en <strong>Expo SecureStore</strong> (almacenamiento seguro nativo).</li>
+    <li>La base de datos local (SQLite) solo existe en el dispositivo y se usa para operación offline temporal.</li>
+  </ul>
+
+  <h2>4. Compartición de datos</h2>
+  <p>No vendemos ni compartimos datos personales con terceros, excepto:</p>
+  <ul>
+    <li><strong>Proveedores de infraestructura:</strong> Supabase (base de datos y autenticación), Expo (distribución y actualizaciones).</li>
+    <li><strong>Cumplimiento legal:</strong> Cuando sea requerido por autoridades competentes.</li>
+    <li><strong>Procesadores de pago:</strong> Si se activa una pasarela de pagos, los datos de transacción se compartirán con el proveedor correspondiente bajo sus propias políticas.</li>
+  </ul>
+
+  <h2>5. Retención de datos</h2>
+  <ul>
+    <li>Los datos de transacciones se conservan mientras la cuenta esté activa.</li>
+    <li>Los datos de sincronización se limpian periódicamente.</li>
+    <li>Las imágenes de evidencia de entrega se conservan por el periodo operativo definido por el administrador.</li>
+  </ul>
+
+  <h2>6. Derechos del usuario</h2>
+  <p>Usted puede:</p>
+  <ul>
+    <li><strong>Acceder</strong> a sus datos personales almacenados.</li>
+    <li><strong>Rectificar</strong> información incorrecta desde la aplicación.</li>
+    <li><strong>Eliminar</strong> su cuenta y datos asociados mediante la función de baja de cuenta.</li>
+    <li><strong>Exportar</strong> sus datos contactando al administrador de la tienda.</li>
+  </ul>
+
+  <h2>7. Menores de edad</h2>
+  <p>La aplicación está dirigida a usuarios mayores de 18 años que operan una tienda o realizan compras. No recopilamos intencionalmente datos de menores.</p>
+
+  <h2>8. Cambios en esta política</h2>
+  <p>Notificaremos cambios significativos mediante un aviso dentro de la aplicación. El uso continuado después de la notificación constituye aceptación de los cambios.</p>
+
+  <h2>9. Contacto</h2>
+  <div class="contact">
+    <h3>Coguana</h3>
+    <p>Santa Anita, Lima, Perú</p>
+    <p>Correo: <a href="mailto:soporte@coguana.app">soporte@coguana.app</a></p>
+    <p>Para solicitudes de eliminación de cuenta, use la función dentro de la aplicación o contacte al correo anterior.</p>
+  </div>
+</body>
+</html>

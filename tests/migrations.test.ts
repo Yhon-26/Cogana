@@ -11,7 +11,7 @@ const MOVEMENT_ID = '90000000-0000-4000-8000-000000000002';
 const HISTORY_ID = '90000000-0000-4000-8000-000000000003';
 const TIMESTAMP = '2026-07-22T12:00:00.000Z';
 
-test('migra v1 a v2 sin borrar la base y conserva cantidades de productos por kg', async (context) => {
+test('migra v1 hasta la versión actual sin borrar la base y conserva cantidades por kg', async (context) => {
   const database = new NodeSQLiteAdapter();
   context.after(() => database.close());
 
@@ -85,4 +85,82 @@ test('migra v1 a v2 sin borrar la base y conserva cantidades de productos por kg
   const productColumns = await database.getAll<{ name: string }>('PRAGMA table_info(products)');
   assert.ok(productColumns.some((column) => column.name === 'stock_quantity'));
   assert.ok(!productColumns.some((column) => column.name === 'stock_grams'));
+});
+
+test('migra una base v2 a v3 y conserva los productos existentes', async (context) => {
+  const database = new NodeSQLiteAdapter();
+  context.after(() => database.close());
+
+  await migrateDatabase(database, 2);
+  await database.run(
+    `INSERT INTO products (
+      id, store_id, sku, name, category, base_unit, pricing_quantity,
+      price_cents, cost_cents, stock_quantity, minimum_stock_quantity,
+      is_active, created_at, updated_at, version
+    ) VALUES (?, ?, 'V2-001', 'Producto v2', 'Prueba', 'unit', 1,
+      500, 300, 10, 2, 1, ?, ?, 1)`,
+    [PRODUCT_ID, DEFAULT_STORE_ID, TIMESTAMP, TIMESTAMP]
+  );
+
+  await migrateDatabase(database);
+
+  assert.equal(
+    (await database.getFirst<{ user_version: number }>('PRAGMA user_version'))
+      ?.user_version,
+    DATABASE_VERSION
+  );
+  assert.equal(
+    (await getProductById(database, DEFAULT_STORE_ID, PRODUCT_ID))?.stockQuantity,
+    10
+  );
+
+  const requiredTables = [
+    'local_users',
+    'cash_sessions',
+    'cash_movements',
+    'sales',
+    'sale_items',
+    'payments',
+    'local_device_identity',
+    'local_receipt_sequences',
+    'sync_inbox',
+    'local_sync_state',
+    'suppliers',
+    'delivery_zones',
+    'customers',
+    'customer_addresses',
+    'orders',
+    'order_items',
+    'order_status_history',
+    'local_order_sequences',
+    'purchase_orders',
+    'purchase_order_items',
+    'inventory_lots',
+    'physical_counts',
+    'physical_count_items',
+    'sale_returns',
+    'sale_return_items',
+    'role_permissions',
+    'work_shifts',
+    'attendance_entries',
+    'cash_difference_reviews',
+    'app_preferences',
+  ];
+  const tables = await database.getAll<{ name: string }>(
+    `SELECT name
+     FROM sqlite_master
+     WHERE type = 'table'`
+  );
+  for (const table of requiredTables) {
+    assert.ok(tables.some((candidate) => candidate.name === table), table);
+  }
+
+  const localUserColumns = await database.getAll<{ name: string }>(
+    'PRAGMA table_info(local_users)'
+  );
+  assert.ok(localUserColumns.some((column) => column.name === 'auth_user_id'));
+  const outboxColumns = await database.getAll<{ name: string }>(
+    'PRAGMA table_info(sync_outbox)'
+  );
+  assert.ok(outboxColumns.some((column) => column.name === 'actor_user_id'));
 });

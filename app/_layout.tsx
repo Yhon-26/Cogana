@@ -1,14 +1,27 @@
-import { DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
-import { SQLiteProvider } from 'expo-sqlite';
-import { StatusBar } from 'expo-status-bar';
-import { Suspense } from 'react';
-import 'react-native-reanimated';
+import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { SQLiteProvider } from "expo-sqlite";
+import { Suspense, useEffect, useState } from "react";
+import { AutoSyncCoordinator } from "@/components/auto-sync-coordinator";
+import {
+  DatabaseErrorBoundary,
+  DatabaseLoadingScreen,
+} from "@/components/database-boundary";
+import { BrandColors } from "@/constants/theme";
+import { AppPreferencesProvider } from "@/context/app-preferences-context";
+import {
+  CustomerAuthProvider,
+  useCustomerAuth,
+} from "@/context/customer-auth-context";
+import { LocalOperatorProvider } from "@/context/local-operator-context";
+import { SupabaseAuthProvider } from "@/context/supabase-auth-context";
+import { DATABASE_NAME, initializeDatabase } from "@/database";
+import { useAppStackScreenOptions } from "@/hooks/use-app-stack-screen-options";
+import "react-native-reanimated";
 
-import { DatabaseErrorBoundary, DatabaseLoadingScreen } from '@/components/database-boundary';
-import { BrandColors } from '@/constants/theme';
-import { StoreProvider } from '@/context/store-context';
-import { DATABASE_NAME, initializeDatabase } from '@/database';
+// Prevent the splash screen from auto-hiding before asset loading is complete.
+SplashScreen.preventAutoHideAsync();
 
 const navigationTheme = {
   ...DefaultTheme,
@@ -22,6 +35,46 @@ const navigationTheme = {
   },
 };
 
+function RootNavigator() {
+  const { state, account } = useCustomerAuth();
+  const screenOptions = useAppStackScreenOptions();
+  const hasCustomerSession = state === "authenticated" && account !== null;
+  const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinSplashTimeElapsed(true);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const isAppReady = state !== "loading" && minSplashTimeElapsed;
+
+  useEffect(() => {
+    if (isAppReady) {
+      SplashScreen.hideAsync();
+    }
+  }, [isAppReady]);
+
+  if (!isAppReady) {
+    return <DatabaseLoadingScreen />;
+  }
+
+  return (
+    <ThemeProvider value={navigationTheme}>
+      <Stack screenOptions={screenOptions}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="cliente" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Protected guard={hasCustomerSession}>
+          <Stack.Screen name="tienda" />
+          <Stack.Screen name="negocio" />
+        </Stack.Protected>
+      </Stack>
+    </ThemeProvider>
+  );
+}
+
 export default function RootLayout() {
   return (
     <DatabaseErrorBoundary>
@@ -29,15 +82,18 @@ export default function RootLayout() {
         <SQLiteProvider
           databaseName={DATABASE_NAME}
           onInit={initializeDatabase}
-          useSuspense>
-          <StoreProvider>
-            <ThemeProvider value={navigationTheme}>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-              </Stack>
-              <StatusBar style="light" />
-            </ThemeProvider>
-          </StoreProvider>
+          useSuspense
+        >
+          <SupabaseAuthProvider>
+            <CustomerAuthProvider>
+              <LocalOperatorProvider>
+                <AppPreferencesProvider>
+                  <AutoSyncCoordinator />
+                  <RootNavigator />
+                </AppPreferencesProvider>
+              </LocalOperatorProvider>
+            </CustomerAuthProvider>
+          </SupabaseAuthProvider>
         </SQLiteProvider>
       </Suspense>
     </DatabaseErrorBoundary>

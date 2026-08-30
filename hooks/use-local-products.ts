@@ -5,6 +5,7 @@ import type { ProductRecord } from '@/database/models';
 import { listProducts } from '@/database/repositories/product-repository';
 import { DEFAULT_STORE_ID } from '@/database/seed';
 import { useLocalDatabase } from '@/hooks/use-local-database';
+import { getOperatorErrorMessage } from '@/lib/user-facing-error';
 
 export function useLocalProducts() {
   const database = useLocalDatabase();
@@ -20,9 +21,12 @@ export function useLocalProducts() {
       setProducts(await listProducts(database, DEFAULT_STORE_ID));
     } catch (caughtError) {
       setError(
-        caughtError instanceof Error
-          ? caughtError
-          : new Error('No se pudieron cargar los productos locales.')
+        new Error(
+          getOperatorErrorMessage(
+            caughtError,
+            'No se pudieron cargar los productos locales.'
+          )
+        )
       );
     } finally {
       if (showLoading) setIsLoading(false);

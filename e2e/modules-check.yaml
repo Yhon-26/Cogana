@@ -1,0 +1,29 @@
+# Test de Modulos Principales - Coguana
+# Verifica: Panel, navegacion basica (sin autenticacion de operador)
+appId: com.yhonq.coguanaapp
+---
+# 1. PANEL PRINCIPAL
+- launchApp
+- assertVisible: "COGUANA"
+- scrollUntilVisible:
+    element: "Entrar al panel"
+    direction: UP
+- tapOn: "Entrar al panel"
+- assertVisible: "OPERACI\u00d3N COGUANA"
+- assertVisible: "Panel administrador"
+
+# 2. VERIFICAR NAVEGACION INFERIOR
+- assertVisible: "Inicio"
+- assertVisible: "Venta"
+- assertVisible: "Inventario"
+- assertVisible: "Pedidos"
+- assertVisible: "M\u00e1s"
+
+# 3. VERIFICAR MODULOS EN PANEL
+- assertVisible: "Iniciar una nueva venta"
+- assertVisible: "Aprovisionar dispositivo"
+- assertVisible: "Sincronizaci\u00f3n Supabase"
+
+# 4. NAVEGAR A INICIO
+- tapOn: "Inicio"
+- assertVisible: "OPERACI\u00d3N COGUANA"

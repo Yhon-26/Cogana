@@ -3,7 +3,7 @@ import { Image } from "expo-image";
 
 import { BrandColors, Typography } from "@/constants/theme";
 
-import logoAsset from "../assets/images/logo1.png";
+import logoAsset from "../assets/images/Logo01.png";
 
 type LogoMode = "full" | "icon" | "wordmark";
 

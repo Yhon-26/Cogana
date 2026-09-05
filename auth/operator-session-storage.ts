@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const KEY_PREFIX = 'coguana.auth.refresh.';
+const KEY_PREFIX = 'cogana.auth.refresh.';
 
 function keyFor(localUserId: string) {
   return `${KEY_PREFIX}${localUserId}`;

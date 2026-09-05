@@ -1,10 +1,10 @@
-# Test de Autenticacion de Cliente - Coguana
+# Test de Autenticacion de Cliente - Cogana
 # Flujo completo: inicio de sesion, registro, recuperacion de contrasena
-appId: com.yhonq.coguanaapp
+appId: com.yhonq.coganaapp
 ---
 # 1. NAVEGAR A CLIENTE
 - launchApp
-- assertVisible: "COGUANA"
+- assertVisible: "COGANA"
 - scrollUntilVisible:
     element: "Comprar como cliente"
     direction: DOWN
@@ -42,4 +42,4 @@ appId: com.yhonq.coguanaapp
 # 7. VOLVER AL INICIO
 - back
 - back
-- assertVisible: "COGUANA"
+- assertVisible: "COGANA"

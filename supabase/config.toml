@@ -1,6 +1,6 @@
-# Configuración del proyecto Supabase local para Coguana.
+# Configuración del proyecto Supabase local para Cogana.
 # Referencia: https://supabase.com/docs/guides/local-development
-project_id = "coguana"
+project_id = "cogana"
 
 [api]
 enabled = true

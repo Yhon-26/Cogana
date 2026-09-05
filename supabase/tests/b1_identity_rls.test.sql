@@ -91,9 +91,9 @@ select _test_create_store('ST-A', 'Tienda A');
 select _test_create_store('ST-B', 'Tienda B');
 
 -- Usuarios. _test_create_auth_user crea el perfil automáticamente via trigger.
-select _test_create_auth_user('admin-a@coguana.test', 'Admin A');   -- owner de Tienda A
-select _test_create_auth_user('seller-a@coguana.test', 'Seller A'); -- vendedor de Tienda A
-select _test_create_auth_user('intruder@coguana.test', 'Intruder'); -- sin membresía
+select _test_create_auth_user('admin-a@cogana.test', 'Admin A');   -- owner de Tienda A
+select _test_create_auth_user('seller-a@cogana.test', 'Seller A'); -- vendedor de Tienda A
+select _test_create_auth_user('intruder@cogana.test', 'Intruder'); -- sin membresía
 
 create or replace function _test_insert_fixture_memberships()
 returns void
@@ -394,7 +394,7 @@ declare
   v_uid uuid;
   v_count int;
 begin
-  v_uid := _test_create_auth_user('trigger-test@coguana.test', 'Trigger Test');
+  v_uid := _test_create_auth_user('trigger-test@cogana.test', 'Trigger Test');
   select count(*) into v_count from profiles where id = v_uid;
   if v_count <> 1 then
     raise exception 'El trigger on_auth_user_created no creó el perfil';

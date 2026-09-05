@@ -1,4 +1,4 @@
-# Decisiones operativas de Coguana
+# Decisiones operativas de Cogana
 
 Este registro cierra las decisiones abiertas de PRD, TRD, flujo y esquema
 backend. Cambiarlas requiere una nueva decisión de producto, migración cuando

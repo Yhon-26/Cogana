@@ -1,17 +1,17 @@
-# Test de Seleccion de Operador - Coguana
+# Test de Seleccion de Operador - Cogana
 # Flujo: panel de administrador, seleccion de operador
-appId: com.yhonq.coguanaapp
+appId: com.yhonq.coganaapp
 ---
 # 1. NAVEGAR A PANEL
 - launchApp
-- assertVisible: "COGUANA"
+- assertVisible: "COGANA"
 - scrollUntilVisible:
     element: "Entrar al panel"
     direction: UP
 - tapOn: "Entrar al panel"
 
 # 2. VERIFICAR PANTALLA DE ADMINISTRADOR
-- assertVisible: "OPERACI\u00d3N COGUANA"
+- assertVisible: "OPERACI\u00d3N COGANA"
 - assertVisible: "Panel administrador"
 - assertVisible: "Usuario de la operaci\u00f3n"
 

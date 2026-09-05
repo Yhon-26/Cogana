@@ -42,7 +42,7 @@ type ScreenProps = PropsWithChildren<{
 }>;
 
 export function AdminScreen({
-  eyebrow = "OPERACIÓN COGUANA",
+  eyebrow = "OPERACIÓN COGANA",
   title,
   subtitle,
   back = false,

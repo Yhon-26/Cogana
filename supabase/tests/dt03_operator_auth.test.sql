@@ -82,12 +82,12 @@ $$;
 
 select _dt03_create_auth_user(
   'b1000000-0000-4000-8000-000000000001',
-  'seller-dt03@coguana.test',
+  'seller-dt03@cogana.test',
   'Seller DT03'
 );
 select _dt03_create_auth_user(
   'b1000000-0000-4000-8000-000000000002',
-  'outsider-dt03@coguana.test',
+  'outsider-dt03@cogana.test',
   'Outsider DT03'
 );
 

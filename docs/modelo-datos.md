@@ -1,4 +1,4 @@
-# Modelo de datos local de Coguana
+# Modelo de datos local de Cogana
 
 ## Alcance
 
@@ -42,7 +42,7 @@ documento describe la proyección operativa local.
 
 ## Inicialización y migraciones
 
-La base `coguana.db` se abre mediante `SQLiteProvider`; las pantallas no crean
+La base `cogana.db` se abre mediante `SQLiteProvider`; las pantallas no crean
 tablas. La inicialización:
 
 1. activa `PRAGMA foreign_keys = ON`;
@@ -122,11 +122,8 @@ presentación vendida descuenta su cantidad convertida del stock base.
 
 ## `local_users`
 
-Comienza con tres usuarios locales del MVP:
-
-- Administrador;
-- Vendedor esposo;
-- Vendedora esposa.
+Comienza con un único usuario local preconfigurado: el Administrador (dueño).
+El alta de empleados adicionales se mantiene en la entrega de Expansión.
 
 | Columna clave | Regla |
 |---|---|

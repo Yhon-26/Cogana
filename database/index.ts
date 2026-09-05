@@ -8,7 +8,7 @@ import {
   seedLocalUsersIfEmpty,
 } from './seed';
 
-export const DATABASE_NAME = 'coguana.db';
+export const DATABASE_NAME = 'cogana.db';
 
 function shouldSeedDemoData() {
   return (

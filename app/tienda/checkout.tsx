@@ -408,7 +408,7 @@ export default function CheckoutScreen() {
             </View>
             <View style={styles.pickupCopy}>
               <Text style={styles.pickupTitle}>
-                Mercado Coguana · Santa Anita
+                Mercado Cogana · Santa Anita
               </Text>
               <Text style={styles.pickupText}>
                 Te avisaremos cuando esté listo. Presenta el número de pedido al

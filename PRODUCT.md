@@ -8,19 +8,19 @@ adaptive
 
 ## Users
 
-El usuario principal es el personal de la tienda: administradores y vendedores que operan Coguana desde el teléfono para atender ventas, controlar existencias y coordinar la operación diaria.
+El usuario principal es el personal de la tienda: administradores y vendedores que operan Cogana desde el teléfono para atender ventas, controlar existencias y coordinar la operación diaria.
 
 Las audiencias secundarias son clientes minoristas, restaurantes o compradores mayoristas y personal de reparto. Estas audiencias participan en los flujos de catálogo, pedidos, compra y entrega, pero la experiencia operativa del personal de tienda tiene prioridad.
 
 ## Product Purpose
 
-Coguana digitaliza la operación y venta de abarrotes pesables desde el teléfono y unifica POS, inventario, pedidos y reparto en tiempo real.
+Cogana digitaliza la operación y venta de abarrotes pesables desde el teléfono y unifica POS, inventario, pedidos y reparto en tiempo real.
 
 El producto reemplaza procesos manuales y mantiene una única visión compartida de productos, cantidades y operaciones entre la tienda y sus usuarios. El éxito exige que los cambios realizados por un usuario estén disponibles para los demás en tiempo real y que la cantidad vendible mostrada corresponda al inventario central vigente.
 
 ## Positioning
 
-Coguana reúne en una sola operación móvil el comercio de abarrotes pesables —incluidos cálculos por peso, presentación o importe—, el POS, el inventario compartido, los pedidos y el reparto. Su diferencia central es conservar estas áreas conectadas en tiempo real, con el personal de tienda como usuario prioritario.
+Cogana reúne en una sola operación móvil el comercio de abarrotes pesables —incluidos cálculos por peso, presentación o importe—, el POS, el inventario compartido, los pedidos y el reparto. Su diferencia central es conservar estas áreas conectadas en tiempo real, con el personal de tienda como usuario prioritario.
 
 ## Operating Context
 
@@ -49,7 +49,7 @@ Coguana reúne en una sola operación móvil el comercio de abarrotes pesables �
 
 ### Arquitectura aprobada: online-first con resiliencia offline
 
-Coguana opera **online-first**: la fuente de verdad es Supabase/PostgreSQL y la
+Cogana opera **online-first**: la fuente de verdad es Supabase/PostgreSQL y la
 operación real requiere conexión. Para sostener la continuidad ante cortes de
 red, la app mantiene una copia operativa local (SQLite), registra cambios en
 `sync_outbox` y los sincroniza de forma idempotente e incremental
@@ -66,7 +66,7 @@ estricta por suscripción en tiempo real.
 
 ## Brand Commitments
 
-- Nombre oficial: Coguana.
+- Nombre oficial: Cogana.
 - La marca cuenta con un logotipo oficial y sus colores pueden utilizarse en la interfaz.
 - La identidad del logotipo está confirmada como oficial. Se facilitó `C:\Users\Yhon\Downloads\logo_oficial.jpg` como referencia visual, pero permanece fuera del repositorio y contiene marcas de agua visibles; debe sustituirse por un maestro limpio y autorizado antes de publicarse.
 - Los archivos actuales `assets/images/icon.png` y `assets/images/splash-icon.png` son marcadores genéricos de Expo y no deben tratarse como la identidad oficial.
@@ -75,10 +75,10 @@ estricta por suscripción en tiempo real.
 
 ## Evidence on Hand
 
-- `PRD_Coguana_v1.0.docx`: alcance, usuarios, venta por peso y expansión prevista. Sus afirmaciones sobre operación offline y logo provisional están reemplazadas por este registro confirmado.
-- `TRD_Coguana_v1.0.docx`: arquitectura técnica histórica; requiere revisión por su dependencia de un enfoque offline-first.
-- `Flujo_App_Coguana_v1.0.docx` y `docs/mapa-pantallas.md`: flujos, roles y mapa de interfaces.
-- `UI_UX_Design_Brief_Coguana_v1.0.docx`: contexto operativo, lenguaje y requisitos de uso; su nota de logo provisional ya no está vigente.
+- `PRD_Cogana_v1.0.docx`: alcance, usuarios, venta por peso y expansión prevista. Sus afirmaciones sobre operación offline y logo provisional están reemplazadas por este registro confirmado.
+- `TRD_Cogana_v1.0.docx`: arquitectura técnica histórica; requiere revisión por su dependencia de un enfoque offline-first.
+- `Flujo_App_Cogana_v1.0.docx` y `docs/mapa-pantallas.md`: flujos, roles y mapa de interfaces.
+- `UI_UX_Design_Brief_Cogana_v1.0.docx`: contexto operativo, lenguaje y requisitos de uso; su nota de logo provisional ya no está vigente.
 - `README.md`, `database/`, `sync/` y las pruebas actuales documentan la implementación existente de la arquitectura online-first con resiliencia offline aprobada.
 - `supabase/` contiene el backend central, migraciones, RLS y pruebas pgTAP existentes.
 - El logotipo oficial fue facilitado como referencia en `C:\Users\Yhon\Downloads\logo_oficial.jpg` (741 × 742 px). Su maestro limpio y su ubicación definitiva dentro del proyecto siguen pendientes de incorporación.

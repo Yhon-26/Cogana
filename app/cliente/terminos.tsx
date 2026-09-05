@@ -11,7 +11,7 @@ export default function TermsScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>Términos y privacidad</Text>
         <Text style={styles.text}>
-          Coguana usa tus datos de contacto y dirección exclusivamente para
+          Cogana usa tus datos de contacto y dirección exclusivamente para
           gestionar tu cuenta, preparar pedidos, coordinar entregas y atender
           incidencias. Los importes de productos por peso son estimados hasta
           confirmar la cantidad preparada. Puedes solicitar actualización o

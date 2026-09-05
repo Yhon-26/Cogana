@@ -100,17 +100,17 @@ $$;
 
 select _b2_create_auth_user(
   '10000000-0000-4000-8000-000000000001',
-  'admin-a-b2@coguana.test',
+  'admin-a-b2@cogana.test',
   'Admin A B2'
 );
 select _b2_create_auth_user(
   '10000000-0000-4000-8000-000000000002',
-  'seller-a-b2@coguana.test',
+  'seller-a-b2@cogana.test',
   'Seller A B2'
 );
 select _b2_create_auth_user(
   '10000000-0000-4000-8000-000000000003',
-  'admin-b-b2@coguana.test',
+  'admin-b-b2@cogana.test',
   'Admin B B2'
 );
 

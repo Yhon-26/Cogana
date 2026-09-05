@@ -94,19 +94,19 @@ export default function ReportsScreen() {
     const csv = `\uFEFF${rows.join("\n")}`;
     const file = new File(
       Paths.cache,
-      `coguana-reporte-${new Date().toISOString().slice(0, 10)}.csv`,
+      `cogana-reporte-${new Date().toISOString().slice(0, 10)}.csv`,
     );
     file.create({ overwrite: true });
     file.write(csv);
     if (await Sharing.isAvailableAsync()) {
       await Sharing.shareAsync(file.uri, {
-        dialogTitle: "Exportar reporte Coguana",
+        dialogTitle: "Exportar reporte Cogana",
         mimeType: "text/csv",
         UTI: "public.comma-separated-values-text",
       });
       return;
     }
-    await Share.share({ title: "Reporte Coguana CSV", message: csv });
+    await Share.share({ title: "Reporte Cogana CSV", message: csv });
   };
   const saveCashReview = async () => {
     if (!reviewTarget || !selectedUser || isSavingReview) return;

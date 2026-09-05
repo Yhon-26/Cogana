@@ -1,13 +1,13 @@
--- Seed de desarrollo: organización Coguana y tienda Santa Anita.
+-- Seed de desarrollo: organización Cogana y tienda Santa Anita.
 -- Ejecutar SOLO en el entorno de development; nunca en production.
 -- Referencia: Esquema Backend v1.0 §4 y Plan de Implementación §8.2.
 
--- 1. Insertar la organización Coguana si no existe.
+-- 1. Insertar la organización Cogana si no existe.
 insert into organizations (id, name, legal_name, tax_id, status)
 values (
   '00000000-0000-4000-8000-000000000001',
-  'Coguana',
-  'Coguana S.A.C.',
+  'Cogana',
+  'Cogana S.A.C.',
   '20612345678',
   'active'
 )
@@ -22,7 +22,7 @@ values (
   '00000000-0000-4000-8000-000000000001',
   '00000000-0000-4000-8000-000000000001',
   'ST-01',
-  'Coguana Santa Anita',
+  'Cogana Santa Anita',
   'Av. Santa Anita 123, Santa Anita, Lima',
   'America/Lima',
   'active'

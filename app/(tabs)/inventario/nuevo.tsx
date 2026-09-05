@@ -8,10 +8,12 @@ import { useLocalOperator } from "@/context/local-operator-context";
 import { createProduct } from "@/database/repositories/product-repository";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { useLocalDatabase } from "@/hooks/use-local-database";
+import { useSaveSync } from "@/hooks/use-save-sync";
 
 export default function CreateProductScreen() {
   const database = useLocalDatabase();
   const { selectedUser, deviceId } = useLocalOperator();
+  const { flushNow } = useSaveSync();
   const [isSaving, setIsSaving] = useState(false);
 
   const save = async (value: ProductFormValue) => {
@@ -27,9 +29,12 @@ export default function CreateProductScreen() {
         deviceId,
         ...value,
       });
+      const syncState = await flushNow();
       Alert.alert(
         "Producto creado",
-        `${product.name} quedó registrado y pendiente de confirmación central.`,
+        syncState === "synced"
+          ? `${product.name} quedó registrado y sincronizado con la central.`
+          : `${product.name} quedó registrado. La central lo sincronizará automáticamente.`,
       );
       router.replace(`/inventario/${product.id}` as Href);
     } finally {

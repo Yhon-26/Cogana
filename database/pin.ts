@@ -1,8 +1,8 @@
 import * as Crypto from 'expo-crypto';
 
-export const PIN_ALGORITHM_ID = 'coguana-pin-pbkdf2-sha256-100000-v3';
-export const LEGACY_PIN_ALGORITHM_ID = 'coguana-pin-iter-sha256-10000-v1';
-export const V2_PIN_ALGORITHM_ID = 'coguana-pin-pbkdf2-sha256-10000-v2';
+export const PIN_ALGORITHM_ID = 'cogana-pin-pbkdf2-sha256-100000-v3';
+export const LEGACY_PIN_ALGORITHM_ID = 'cogana-pin-iter-sha256-10000-v1';
+export const V2_PIN_ALGORITHM_ID = 'cogana-pin-pbkdf2-sha256-10000-v2';
 
 const ITERATIONS = 100_000;
 const SALT_BYTES = 16;

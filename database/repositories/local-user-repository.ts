@@ -133,7 +133,7 @@ export async function provisionFirstLocalOperator(
     storeId: string;
     authUserId: string;
     displayName: string;
-    credentials: PinCredentials;
+    credentials: PinCredentials | null;
   }
 ): Promise<LocalUserRecord> {
   const displayName = input.displayName.trim();
@@ -160,9 +160,9 @@ export async function provisionFirstLocalOperator(
         input.storeId,
         input.authUserId,
         displayName,
-        input.credentials.pinHash,
-        input.credentials.pinSalt,
-        input.credentials.pinAlgorithm,
+        input.credentials?.pinHash ?? null,
+        input.credentials?.pinSalt ?? null,
+        input.credentials?.pinAlgorithm ?? null,
         timestamp,
         timestamp,
       ]

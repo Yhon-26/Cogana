@@ -1,4 +1,4 @@
-# Reporte de Pruebas - App Coguana
+# Reporte de Pruebas - App Cogana
 **Fecha**: 28 de agosto de 2026
 **Entorno**: Emulador Android (Medium_Phone)
 **Framework**: Maestro MCP v2.9.0
@@ -18,7 +18,7 @@
 ## Flujos Probados
 
 ### 1. Pantalla de Bienvenida ✅
-- Marca "COGUANA" visible
+- Marca "COGANA" visible
 - Navegación a "Entrar al panel"
 - Navegación a "Comprar como cliente"
 - Scroll funciona correctamente
@@ -30,7 +30,7 @@
 - Navegación entre formularios
 
 ### 3. Panel de Administrador ✅
-- Visualización de "OPERACIÓN COGUANA"
+- Visualización de "OPERACIÓN COGANA"
 - Navegación inferior (Inicio, Venta, Inventario, Pedidos, Más)
 - Módulos disponibles (Venta, Aprovisionar dispositivo, Sincronización)
 
@@ -82,7 +82,7 @@ maestro screenshot
 
 ## Conclusión
 
-La app Coguana tiene una estructura sólida con:
+La app Cogana tiene una estructura sólida con:
 - ✅ Navegación clara entre flujos
 - ✅ Formularios de autenticación funcionales
 - ✅ Panel de administrador accesible

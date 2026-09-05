@@ -1,5 +1,5 @@
 -- B1 — Identidad, organizaciones, tiendas y dispositivos
--- Proyecto Coguana · Supabase/PostgreSQL
+-- Proyecto Cogana · Supabase/PostgreSQL
 -- Referencia: Esquema Backend v1.0 §4 y §11
 --
 -- Esta migración crea las tablas centrales de identidad con Row Level Security
@@ -383,13 +383,13 @@ create policy devices_update_store_admin
 -- =============================================================================
 
 comment on schema private is
-  'Helpers internos de Coguana. No consume credenciales service_role.';
+  'Helpers internos de Cogana. No consume credenciales service_role.';
 
 comment on table organizations is
-  'Organizaciones Coguana. Una organización agrupa varias tiendas.';
+  'Organizaciones Cogana. Una organización agrupa varias tiendas.';
 
 comment on table stores is
-  'Tiendas físicas de Coguana. Santa Anita es el primer registro.';
+  'Tiendas físicas de Cogana. Santa Anita es el primer registro.';
 
 comment on table store_memberships is
   'Vínculo usuario ↔ tienda ↔ rol. La PK compuesta evita duplicados.';

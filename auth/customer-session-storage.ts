@@ -1,7 +1,7 @@
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const CUSTOMER_REFRESH_TOKEN_KEY = 'coguana.auth.customer.refresh';
+const CUSTOMER_REFRESH_TOKEN_KEY = 'cogana.auth.customer.refresh';
 
 export async function readCustomerRefreshToken() {
   if (Platform.OS === 'web' || !(await SecureStore.isAvailableAsync())) {

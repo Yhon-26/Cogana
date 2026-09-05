@@ -14,8 +14,8 @@ import {
 
 test('normaliza el correo y el teléfono del cliente', () => {
   assert.equal(
-    normalizeCustomerEmail('  CLIENTE@COGUANA.PE '),
-    'cliente@coguana.pe'
+    normalizeCustomerEmail('  CLIENTE@COGANA.PE '),
+    'cliente@cogana.pe'
   );
   assert.equal(normalizeCustomerPhone('(+51) 999-888-777'), '+51999888777');
 });

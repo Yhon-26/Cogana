@@ -72,17 +72,17 @@ $$;
 
 select _dt01_create_auth_user(
   '91000000-0000-4000-8000-000000000001',
-  'admin-a-dt01@coguana.test',
+  'admin-a-dt01@cogana.test',
   'Admin A DT01'
 );
 select _dt01_create_auth_user(
   '91000000-0000-4000-8000-000000000002',
-  'seller-a-dt01@coguana.test',
+  'seller-a-dt01@cogana.test',
   'Seller A DT01'
 );
 select _dt01_create_auth_user(
   '91000000-0000-4000-8000-000000000003',
-  'admin-b-dt01@coguana.test',
+  'admin-b-dt01@cogana.test',
   'Admin B DT01'
 );
 

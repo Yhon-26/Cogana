@@ -1,7 +1,15 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
 import { type ComponentProps, useEffect, useState, useRef } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Animated,
+  KeyboardAvoidingView,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { BrandLogo } from "@/components/brand-logo";
@@ -11,6 +19,7 @@ import {
   BrandColors,
   ComponentMetrics,
   ControlSize,
+  Elevation,
   Interaction,
   Layout,
   Radius,
@@ -37,9 +46,10 @@ export default function RootLoginScreen() {
     signIn: customerSignIn,
     signUp,
     continueToSignIn,
+    signOut: customerSignOut,
   } = useCustomerAuth();
   const { provisionFirstOperator, linkOperator } = useSupabaseAuth();
-  const { users, reload: reloadLocalOperator } = useLocalOperator();
+  const { users, selectedUser, reload: reloadLocalOperator } = useLocalOperator();
   const [mode, setMode] = useState<Mode>("sign_in");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -48,27 +58,46 @@ export default function RootLoginScreen() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Al arrancar con una sesión guardada se muestran las tarjetas de sesión
+  // activa en lugar de entrar automáticamente, para permitir cambiar de cuenta.
+  const suppressAutoEntryRef = useRef(true);
 
   const isBusy = isSubmitting || state === "authenticating" || state === "loading";
   const termsBlocked = mode === "sign_up" && !acceptedTerms;
   const submitDisabled = isBusy || !isConfigured || termsBlocked;
   const useSplitLayout =
     isMedium && width >= Layout.commerceMaxWidth && fontScale < 1.3;
+  const hasCustomerSession = state === "authenticated" && account !== null;
+  const hasOperatorSession = selectedUser !== null && users.length > 0;
 
   useEffect(() => {
-    if (state === "authenticated" && account) {
+    if (suppressAutoEntryRef.current) return;
+    if (hasCustomerSession) {
       router.replace("/tienda" as Href);
     }
-  }, [account, state]);
+  }, [hasCustomerSession]);
+
+  const continueCustomerSession = () => {
+    suppressAutoEntryRef.current = false;
+    router.replace("/tienda" as Href);
+  };
+
+  const switchToAnotherAccount = async () => {
+    setSubmitError(null);
+    setMode("sign_in");
+    await customerSignOut();
+  };
 
   const submit = async () => {
     setSubmitError(null);
     setIsSubmitting(true);
+    // Ingreso activo desde el formulario: el efecto de sesión decide la ruta.
+    suppressAutoEntryRef.current = false;
     try {
       if (mode === "sign_in") {
         const client = getSupabaseClient();
         if (!client) throw new Error("Supabase no está configurado.");
-        
+
         const { data, error } = await client.auth.signInWithPassword({
           email,
           password,
@@ -78,39 +107,60 @@ export default function RootLoginScreen() {
           throw new Error("Supabase no devolvió una sesión válida.");
         }
 
-        const { data: operatorData } = await client
+        // Las cuentas se dirigen según su tipo de registro: las creadas desde
+        // la app son clientes y van a la tienda; las de dueño/personal se
+        // registran en Supabase y van al panel operativo.
+        const metadata = data.user.user_metadata as
+          | Record<string, unknown>
+          | null;
+        const accountType =
+          typeof metadata?.account_type === "string"
+            ? metadata.account_type
+            : null;
+
+        if (accountType === "customer") {
+          await customerSignIn(email, password);
+          return;
+        }
+
+        const { data: operatorData, error: operatorError } = await client
           .rpc("get_my_operator_context", { p_store_id: DEFAULT_STORE_ID })
           .single();
 
-        const role = operatorData?.store_role;
-        const isOperator = role === "owner" || role === "admin" || role === "seller";
+        const role = (
+          operatorData as { store_role?: string } | null
+        )?.store_role;
+        const isOperator =
+          !operatorError && (role === "owner" || role === "admin");
 
-        if (isOperator) {
-          // Find if we already have a local user linked to this Supabase account
-          let targetUser = users.find(u => u.authUserId === data.user.id);
-          
-          if (!targetUser) {
-            // If not found, see if we can link an unlinked administrator (e.g. the Demo Admin)
-            targetUser = users.find(u => u.role === "administrator" && !u.authUserId);
-          }
-
-          if (!targetUser) {
-            // No available local user to link, so we must provision a new one
-            await provisionFirstOperator({
-              storeId: DEFAULT_STORE_ID,
-              email,
-              password,
-              pin: "000000",
-            });
-          } else {
-            // Link or just re-authenticate the existing local user
-            await linkOperator(targetUser, { email, password });
-          }
-          await reloadLocalOperator();
-          router.replace("/panel" as Href);
-        } else {
-          await customerSignIn(email, password);
+        if (!isOperator) {
+          throw new Error(
+            "Esta cuenta no tiene acceso como personal de la tienda ni está registrada como cliente."
+          );
         }
+
+        // Find if we already have a local user linked to this Supabase account
+        let targetUser = users.find(u => u.authUserId === data.user.id);
+
+        if (!targetUser) {
+          // If not found, see if we can link an unlinked administrator (e.g. the Demo Admin)
+          targetUser = users.find(u => u.role === "administrator" && !u.authUserId);
+        }
+
+        if (!targetUser) {
+          // Provision without PIN; el PIN se crea explícitamente después
+          // desde el selector de operadores.
+          await provisionFirstOperator({
+            storeId: DEFAULT_STORE_ID,
+            email,
+            password,
+          });
+        } else {
+          // Link or just re-authenticate the existing local user
+          await linkOperator(targetUser, { email, password });
+        }
+        await reloadLocalOperator();
+        router.replace("/panel" as Href);
       } else {
         await signUp({ name, phone, email, password, acceptedTerms });
       }
@@ -167,21 +217,96 @@ export default function RootLoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={[styles.topBar, { paddingHorizontal: gutter, justifyContent: 'center' }]}>
-        <BrandLogo mode="icon" size={42} />
-      </View>
-
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={styles.flex}
       >
-        <View
-          style={[
-            styles.accessLayout,
-            useSplitLayout && styles.accessLayoutSplit,
-          ]}
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}
+          keyboardDismissMode="on-drag"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
+          <View
+            style={[
+              styles.accessLayout,
+              useSplitLayout && styles.accessLayoutSplit,
+            ]}
+          >
+          {hasCustomerSession || hasOperatorSession ? (
+            <View style={styles.sessionStack}>
+              {hasOperatorSession ? (
+                <View style={styles.sessionCard}>
+                  <View style={[styles.sessionIcon, styles.sessionIconStaff]}>
+                    <MaterialCommunityIcons
+                      name="storefront"
+                      size={22}
+                      color={BrandColors.greenDark}
+                    />
+                  </View>
+                  <View style={styles.sessionInfo}>
+                    <Text style={styles.sessionEyebrow}>SESIÓN DE TIENDA</Text>
+                    <Text numberOfLines={1} style={styles.sessionName}>
+                      {selectedUser?.displayName ?? "Operador"}
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => router.replace("/panel" as Href)}
+                    style={({ pressed }) => [
+                      styles.sessionAction,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.sessionActionText}>Entrar al panel</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              {hasCustomerSession && account ? (
+                <View style={styles.sessionCard}>
+                  <View style={styles.sessionIcon}>
+                    <MaterialCommunityIcons
+                      name="account-circle-outline"
+                      size={22}
+                      color={BrandColors.greenDark}
+                    />
+                  </View>
+                  <View style={styles.sessionInfo}>
+                    <Text style={styles.sessionEyebrow}>SESIÓN ACTIVA</Text>
+                    <Text numberOfLines={1} style={styles.sessionName}>
+                      {account.name}
+                    </Text>
+                  </View>
+                  <View style={styles.sessionActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={continueCustomerSession}
+                      style={({ pressed }) => [
+                        styles.sessionAction,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text style={styles.sessionActionText}>
+                        Ir a la tienda
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => void switchToAnotherAccount()}
+                      style={({ pressed }) => [
+                        styles.sessionSecondary,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text style={styles.sessionSecondaryText}>
+                        Usar otra cuenta
+                      </Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
           <View style={[styles.intro, useSplitLayout && styles.introSplit]}>
             <Text style={styles.eyebrow}>TU CUENTA</Text>
             <Text accessibilityRole="header" style={styles.title}>
@@ -220,12 +345,16 @@ export default function RootLoginScreen() {
                 <>
                   <CustomerInput
                     autoCapitalize="words"
+                    autoComplete="name"
+                    icon="account-outline"
                     label="Nombre completo"
                     onChangeText={setName}
                     placeholder="Nombres y apellidos"
                     value={name}
                   />
                   <CustomerInput
+                    autoComplete="tel"
+                    icon="phone-outline"
                     keyboardType="phone-pad"
                     label="Teléfono"
                     onChangeText={setPhone}
@@ -236,6 +365,8 @@ export default function RootLoginScreen() {
               ) : null}
               <CustomerInput
                 autoCapitalize="none"
+                autoComplete="email"
+                icon="email-outline"
                 keyboardType="email-address"
                 label="Correo"
                 onChangeText={setEmail}
@@ -244,6 +375,8 @@ export default function RootLoginScreen() {
               />
               <CustomerInput
                 autoCapitalize="none"
+                autoComplete={mode === "sign_up" ? "new-password" : "password"}
+                icon="lock-outline"
                 label="Contraseña"
                 onChangeText={setPassword}
                 placeholder="Mínimo 8 caracteres"
@@ -351,6 +484,7 @@ export default function RootLoginScreen() {
         </View>
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -383,18 +517,67 @@ function ModeButton({
 }
 
 function CustomerInput({
+  icon,
   label,
+  secureTextEntry = false,
+  onFocus,
+  onBlur,
   ...props
-}: ComponentProps<typeof TextInput> & { label: string }) {
+}: ComponentProps<typeof TextInput> & {
+  icon: ComponentProps<typeof MaterialCommunityIcons>["name"];
+  label: string;
+}) {
+  const [isFieldFocused, setIsFieldFocused] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        {...props}
-        placeholderTextColor={BrandColors.muted}
-        style={styles.input}
-      />
+      <Text style={styles.label} numberOfLines={1}>
+        {label}
+      </Text>
+      <View
+        style={[styles.inputWrap, isFieldFocused && styles.inputWrapFocused]}
+      >
+        <MaterialCommunityIcons
+          name={icon}
+          size={20}
+          color={isFieldFocused ? BrandColors.green : BrandColors.mutedLight}
+        />
+        <TextInput
+          {...props}
+          accessibilityLabel={label}
+          maxFontSizeMultiplier={1.5}
+          secureTextEntry={secureTextEntry && !isPasswordVisible}
+          style={styles.input}
+          onBlur={(event) => {
+            setIsFieldFocused(false);
+            onBlur?.(event);
+          }}
+          onFocus={(event) => {
+            setIsFieldFocused(true);
+            onFocus?.(event);
+          }}
+        />
+        {secureTextEntry ? (
+          <Pressable
+            accessibilityLabel={
+              isPasswordVisible
+                ? "Ocultar contraseña"
+                : "Mostrar contraseña"
+            }
+            accessibilityRole="button"
+            hitSlop={12}
+            onPress={() => setIsPasswordVisible((current) => !current)}
+            style={({ pressed }) => [styles.eyeButton, pressed && styles.pressed]}
+          >
+            <MaterialCommunityIcons
+              name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
+              size={22}
+              color={BrandColors.muted}
+            />
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -457,25 +640,73 @@ function LoadingLeaves({ color }: { color: string }) {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: BrandColors.cream },
+  flex: { flex: 1 },
   topBar: {
-    minHeight: 82,
+    minHeight: 56,
     width: "100%",
     maxWidth: Layout.commerceMaxWidth,
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.md,
-    marginTop: Spacing.lg,
+    marginTop: Spacing.sm,
   },
   content: {
     flexGrow: 1,
     width: "100%",
     maxWidth: Layout.commerceMaxWidth,
     alignSelf: "center",
-    paddingTop: Spacing.xl,
+    paddingTop: Spacing.md,
     paddingBottom: Spacing.xxl,
   },
   accessLayout: { flexGrow: 1 },
+  sessionStack: { gap: Spacing.sm, marginBottom: Spacing.xl },
+  sessionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: BrandColors.line,
+    backgroundColor: BrandColors.white,
+    padding: Spacing.md,
+    ...Elevation.ambientCard,
+  },
+  sessionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: BrandColors.greenLight,
+  },
+  sessionIconStaff: { backgroundColor: BrandColors.goldLight },
+  sessionInfo: { flex: 1, minWidth: 0 },
+  sessionEyebrow: { color: BrandColors.muted, ...Typography.overline },
+  sessionName: {
+    color: BrandColors.text,
+    ...Typography.label,
+    marginTop: 2,
+  },
+  sessionActions: { alignItems: "flex-end", gap: Spacing.xxs },
+  sessionAction: {
+    minHeight: ControlSize.compact,
+    borderRadius: Radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: BrandColors.green,
+    paddingHorizontal: Spacing.md,
+  },
+  sessionActionText: { color: BrandColors.white, ...Typography.label },
+  sessionSecondary: {
+    minHeight: ControlSize.compact,
+    borderRadius: Radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: BrandColors.greenLight,
+    paddingHorizontal: Spacing.md,
+  },
+  sessionSecondaryText: { color: BrandColors.greenDark, ...Typography.label },
   accessLayoutSplit: {
     flexDirection: "row",
     alignItems: "center",
@@ -536,15 +767,37 @@ const styles = StyleSheet.create({
   form: { gap: Spacing.sm, marginTop: Spacing.lg },
   field: { gap: Spacing.xs },
   label: { color: BrandColors.text, ...Typography.label },
-  input: {
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
     minHeight: ControlSize.default,
     borderRadius: ComponentMetrics.inputRadius,
     borderWidth: 1,
     borderColor: BrandColors.line,
     backgroundColor: BrandColors.white,
+    paddingHorizontal: Spacing.sm + 2,
+  },
+  inputWrapFocused: {
+    borderColor: BrandColors.green,
+    ...Elevation.ambientCard,
+  },
+  input: {
+    flex: 1,
+    minWidth: 0,
     color: BrandColors.text,
     ...Typography.body,
-    paddingHorizontal: Spacing.sm,
+    paddingVertical: 13,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  eyeButton: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: -Spacing.xxs,
   },
   consentRow: {
     minHeight: ControlSize.default,
@@ -565,6 +818,7 @@ const styles = StyleSheet.create({
     backgroundColor: BrandColors.green,
     paddingHorizontal: Spacing.lg,
     marginTop: Spacing.xs,
+    ...Elevation.ambientCard,
   },
   primaryButtonText: { color: BrandColors.white, ...Typography.label },
   disabled: { opacity: Interaction.disabledOpacity },

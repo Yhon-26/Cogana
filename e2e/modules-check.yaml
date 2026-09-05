@@ -1,15 +1,15 @@
-# Test de Modulos Principales - Coguana
+# Test de Modulos Principales - Cogana
 # Verifica: Panel, navegacion basica (sin autenticacion de operador)
-appId: com.yhonq.coguanaapp
+appId: com.yhonq.coganaapp
 ---
 # 1. PANEL PRINCIPAL
 - launchApp
-- assertVisible: "COGUANA"
+- assertVisible: "COGANA"
 - scrollUntilVisible:
     element: "Entrar al panel"
     direction: UP
 - tapOn: "Entrar al panel"
-- assertVisible: "OPERACI\u00d3N COGUANA"
+- assertVisible: "OPERACI\u00d3N COGANA"
 - assertVisible: "Panel administrador"
 
 # 2. VERIFICAR NAVEGACION INFERIOR
@@ -26,4 +26,4 @@ appId: com.yhonq.coguanaapp
 
 # 4. NAVEGAR A INICIO
 - tapOn: "Inicio"
-- assertVisible: "OPERACI\u00d3N COGUANA"
+- assertVisible: "OPERACI\u00d3N COGANA"

@@ -1,5 +1,5 @@
-# Test General Completo - Coguana (con logo integrado)
-appId: com.yhonq.coguanaapp
+# Test General Completo - Cogana (con logo integrado)
+appId: com.yhonq.coganaapp
 ---
 # 1. PANTALLA DE BIENVENIDA
 - launchApp:

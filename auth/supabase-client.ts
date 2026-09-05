@@ -47,7 +47,7 @@ export function getCustomerSupabaseClient(): SupabaseClient | null {
       autoRefreshToken: false,
       persistSession: false,
       detectSessionInUrl: false,
-      storageKey: 'coguana-customer-auth',
+      storageKey: 'cogana-customer-auth',
     },
   });
   return customerClient;

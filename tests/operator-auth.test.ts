@@ -184,7 +184,7 @@ test('el aprovisionamiento inicial solo funciona con una base sin operadores', a
     id: AUTH_USER_ID,
     storeId: DEFAULT_STORE_ID,
     authUserId: AUTH_USER_ID,
-    displayName: 'Owner Coguana',
+    displayName: 'Owner Cogana',
     credentials: {
       pinHash: 'hash-seguro',
       pinSalt: '00112233445566778899aabbccddeeff',
@@ -207,4 +207,32 @@ test('el aprovisionamiento inicial solo funciona con una base sin operadores', a
     }),
     /ya fue aprovisionado/
   );
+});
+
+test('el aprovisionamiento inicial admite operador sin PIN para crearlo después', async (context) => {
+  const database = new NodeSQLiteAdapter();
+  context.after(() => database.close());
+  await migrateDatabase(database);
+  const provisioned = await provisionFirstLocalOperator(database, {
+    id: AUTH_USER_ID,
+    storeId: DEFAULT_STORE_ID,
+    authUserId: AUTH_USER_ID,
+    displayName: 'Owner sin PIN',
+    credentials: null,
+  });
+  assert.equal(provisioned.role, 'administrator');
+  assert.equal(provisioned.authUserId, AUTH_USER_ID);
+  assert.equal(provisioned.hasPin, false);
+  const row = await database.getFirst<{
+    pin_hash: string | null;
+    pin_salt: string | null;
+    pin_algorithm: string | null;
+  }>(
+    `SELECT pin_hash,pin_salt,pin_algorithm
+     FROM local_users WHERE id = ?`,
+    [AUTH_USER_ID]
+  );
+  assert.equal(row?.pin_hash, null);
+  assert.equal(row?.pin_salt, null);
+  assert.equal(row?.pin_algorithm, null);
 });

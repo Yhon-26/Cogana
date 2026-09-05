@@ -455,12 +455,12 @@ export default function SettingsScreen() {
         </Text>
       </View>
       <View style={[sharedStyles.card, styles.card]}>
-        <Text style={styles.title}>Acerca de Coguana</Text>
+        <Text style={styles.title}>Acerca de Cogana</Text>
         <Text style={styles.meta}>
           Versión {Constants.expoConfig?.version ?? "1.0.0"} · Expo SDK 54
         </Text>
         <Text style={styles.help}>
-          POS conectado para Mercado Coguana · Santa Anita, Lima.
+          POS conectado para Mercado Cogana · Santa Anita, Lima.
         </Text>
       </View>
     </AdminScreen>

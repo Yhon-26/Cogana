@@ -1,10 +1,10 @@
-# Test General de Toda la App - Coguana
+# Test General de Toda la App - Cogana
 # Cubre: Bienvenida, Cliente, Operador, Modulos principales
-appId: com.yhonq.coguanaapp
+appId: com.yhonq.coganaapp
 ---
 # 1. PANTALLA DE BIENVENIDA
 - launchApp
-- assertVisible: "COGUANA"
+- assertVisible: "COGANA"
 - scrollUntilVisible:
     element: "Entrar al panel"
     direction: UP
@@ -22,7 +22,7 @@ appId: com.yhonq.coguanaapp
 
 # 3. VOLVER AL INICIO
 - back
-- assertVisible: "COGUANA"
+- assertVisible: "COGANA"
 
 # 4. FLUJO DE OPERADOR
 - scrollUntilVisible:

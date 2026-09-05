@@ -1,8 +1,8 @@
-# Mapa de interfaces y entregas de Coguana
+# Mapa de interfaces y entregas de Cogana
 
 ## Propósito y criterios
 
-Este documento conserva el mapa funcional completo de Coguana, pero lo organiza en entregas alcanzables para una sola persona. Es un roadmap de producto: una interfaz listada no se considera implementada hasta que su entrega haya sido desarrollada y validada.
+Este documento conserva el mapa funcional completo de Cogana, pero lo organiza en entregas alcanzables para una sola persona. Es un roadmap de producto: una interfaz listada no se considera implementada hasta que su entrega haya sido desarrollada y validada.
 
 Los únicos valores permitidos en **Tipo de interfaz** son:
 
@@ -44,7 +44,7 @@ operación ante cortes de red hasta la siguiente sincronización.
 - **PostgreSQL mediante Supabase es la fuente central y oficial.** La tienda online, restaurantes, clientes mayoristas y futuras sucursales utilizan esta misma base central.
 - **SQLite es la copia operativa local de cada teléfono para resiliencia ante cortes.** No reemplaza PostgreSQL ni debe tratarse como una base central compartida.
 - Una demostración inicial puede funcionar en un solo dispositivo usando únicamente SQLite. Esta modalidad sirve para validar el flujo, pero no representa una operación multiusuario real.
-- El piloto real con **Administrador**, **Vendedor esposo** y **Vendedora esposa** requiere PostgreSQL mediante Supabase y sincronización entre dispositivos.
+- El piloto real con el **Administrador** requiere PostgreSQL mediante Supabase y sincronización entre dispositivos.
 - La aplicación nunca se conectará directamente con la contraseña de PostgreSQL. El cliente utilizará Supabase, sesiones autenticadas y reglas **Row Level Security (RLS)**; las operaciones privilegiadas se ejecutarán mediante funciones seguras. Ninguna contraseña de PostgreSQL ni clave con privilegios administrativos se incluirá en la aplicación.
 - Toda operación creada offline tendrá un **identificador único generado en el dispositivo**. El servidor utilizará ese identificador como clave de idempotencia para aceptar cada venta o movimiento una sola vez y evitar duplicados durante reintentos de sincronización.
 - La cola local distinguirá al menos los estados **pendiente**, **sincronizando**, **sincronizado** y **con error**, sin descartar una operación hasta recibir confirmación de Supabase.
@@ -74,7 +74,7 @@ las aplica mediante la extensión de sincronización
 
 ### Decisiones de alcance del MVP interno
 
-- El MVP comienza con tres usuarios locales preconfigurados: **Administrador**, **Vendedor esposo** y **Vendedora esposa**. Los dos perfiles vendedores operan como cajeros. El alta, edición y administración dinámica de empleados se mantiene en **Expansión**.
+- El MVP comienza con un único usuario local preconfigurado: el **Administrador**. El alta, edición y administración dinámica de empleados se mantiene en **Expansión**.
 - Las unidades **kg**, **gramo**, **unidad**, **paquete**, **caja** y **saco** estarán predefinidas. La creación de unidades adicionales y la configuración avanzada de conversiones se mantiene en **Expansión**.
 - La pestaña existente **Pedidos** (E4, ruta `/pedidos`) no formará parte de la navegación activa del MVP interno. Su base se conserva para la entrega **Venta online minorista**.
 
@@ -119,7 +119,7 @@ condicionados a contratar y configurar un proveedor de pagos.
 
 | Nombre | Tipo de interfaz | Tipo de usuario | Objetivo | Se abre desde | Acción principal | Entrega | Reutilización |
 |---|---|---|---|---|---|---|---|
-| Bienvenida y selección de acceso | Pantalla | Todos | Presentar Coguana y dirigir al flujo de compra o acceso interno | Inicio de la aplicación | Elegir tipo de acceso | Venta online minorista | Parcial: identidad visual de E1 |
+| Bienvenida y selección de acceso | Pantalla | Todos | Presentar Cogana y dirigir al flujo de compra o acceso interno | Inicio de la aplicación | Elegir tipo de acceso | Venta online minorista | Parcial: identidad visual de E1 |
 | Inicio de sesión de cliente | Pantalla | Cliente minorista y mayorista | Acceder a pedidos, direcciones y condiciones de cuenta | Bienvenida; Perfil | Iniciar sesión | Venta online minorista | No |
 | Registro de cliente minorista | Pantalla | Cliente minorista | Crear una cuenta con datos básicos | Inicio de sesión | Crear cuenta | Venta online minorista | No |
 | Verificación de cuenta | Pantalla | Cliente minorista y mayorista | Confirmar correo o teléfono | Registro; cambio de datos sensibles | Verificar código | Venta online minorista | No |
@@ -248,7 +248,7 @@ pero su activación depende de proveedores y secretos externos.
 | Órdenes de compra | Pantalla | Administrador y almacén | Solicitar mercadería y controlar su recepción | Proveedores; Alertas de reposición | Emitir orden | Expansión | Parcial: estructura de E4 |
 | Lotes y vencimientos | Pantalla | Administrador y almacén | Controlar lotes, vencimientos y rotación | Entrada de mercadería; Detalle de inventario | Registrar lote | Expansión | Parcial: Detalle de inventario |
 | Escaneo de código | Integración externa | Cajero y almacén | Encontrar productos mediante cámara o lector | Nueva venta; inventario; recepción | Escanear código | Expansión | Parcial: entrada para E2 o E3 |
-| Empleados | Pantalla | Administrador | Administrar dinámicamente el personal, sus roles y estados de acceso después de los tres usuarios locales del MVP | E1; Configuración | Abrir empleado | Expansión | Parcial: lista de E3 |
+| Empleados | Pantalla | Administrador | Administrar dinámicamente el personal, sus roles y estados de acceso después del usuario local inicial del MVP | E1; Configuración | Abrir empleado | Expansión | Parcial: lista de E3 |
 | Alta y edición de empleado | Pantalla | Administrador | Registrar datos, rol, permisos y PIN | Empleados | Guardar empleado | Expansión | Parcial: formulario de productos |
 | Roles y permisos | Pantalla | Propietario y administrador autorizado | Definir módulos y acciones disponibles por rol | Empleados; Configuración | Guardar permisos | Expansión | No |
 | Turnos y asistencia | Pantalla | Administrador y empleado | Programar horarios y registrar jornada | Empleados; Perfil del empleado | Registrar turno | Expansión | Parcial: apertura y cierre de caja |
@@ -268,7 +268,7 @@ pero su activación depende de proveedores y secretos externos.
 | Contacto y soporte | Pantalla | Todos | Comunicarse con la tienda o soporte | Centro de ayuda; Detalle de pedido | Iniciar contacto | Expansión | No |
 | Crear solicitud de soporte | Pantalla | Cliente, empleado o administrador | Documentar un problema y adjuntar evidencia | Contacto; incidencia | Enviar solicitud | Expansión | Parcial: formulario de incidencias |
 | Mis solicitudes de soporte | Pantalla | Usuario solicitante | Consultar estado y respuestas de soporte | Perfil; Centro de ayuda | Abrir solicitud | Expansión | Sí: lista y estados de E4 |
-| Acerca de Coguana | Pantalla | Todos | Mostrar versión, tienda y canales oficiales | Perfil; Configuración | Consultar información | Expansión | Parcial: identidad visual de E1 |
+| Acerca de Cogana | Pantalla | Todos | Mostrar versión, tienda y canales oficiales | Perfil; Configuración | Consultar información | Expansión | Parcial: identidad visual de E1 |
 | Facturación electrónica y SUNAT | Integración externa | Administrador y propietario | Emitir, consultar y anular comprobantes electrónicos según SUNAT | Cobro de venta; Detalle de venta; Configuración de tienda | Emitir comprobante electrónico | Expansión | Parcial: Comprobante de venta; requiere proveedor o API SUNAT |
 
 ## Orden recomendado de construcción

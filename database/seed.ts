@@ -36,16 +36,6 @@ const DEMO_USERS = [
     displayName: 'Administrador',
     role: 'administrator',
   },
-  {
-    id: DEMO_HUSBAND_USER_ID,
-    displayName: 'Vendedor esposo',
-    role: 'seller',
-  },
-  {
-    id: DEMO_WIFE_USER_ID,
-    displayName: 'Vendedora esposa',
-    role: 'seller',
-  },
 ] as const;
 
 const DEMO_PRESENTATIONS = [

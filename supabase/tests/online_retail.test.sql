@@ -22,14 +22,14 @@ insert into auth.users (
 ) values (
   '00000000-0000-0000-0000-000000000000',
   'e1100000-0000-4000-8000-000000000001',
-  'authenticated','authenticated','online@coguana.test','hash',now(),
+  'authenticated','authenticated','online@cogana.test','hash',now(),
   '{}'::jsonb,'{"full_name":"Cliente Online"}'::jsonb,now(),now()
 );
 insert into auth.identities(id,user_id,identity_data,provider,provider_id,last_sign_in_at,created_at,updated_at)
 values (
   gen_random_uuid(),'e1100000-0000-4000-8000-000000000001',
-  '{"sub":"e1100000-0000-4000-8000-000000000001","email":"online@coguana.test"}',
-  'email','online@coguana.test',now(),now(),now()
+  '{"sub":"e1100000-0000-4000-8000-000000000001","email":"online@cogana.test"}',
+  'email','online@cogana.test',now(),now(),now()
 );
 insert into public.organizations(id,name)
 values ('e1200000-0000-4000-8000-000000000001','Org Online');
@@ -57,7 +57,7 @@ insert into public.customers(
   'e1600000-0000-4000-8000-000000000001',
   'e1300000-0000-4000-8000-000000000001',
   'e1100000-0000-4000-8000-000000000001','retail','Cliente Online',
-  '999111222','online@coguana.test','active'
+  '999111222','online@cogana.test','active'
 );
 
 select set_config(

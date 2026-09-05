@@ -1,7 +1,7 @@
-appId: com.yhonq.coguanaapp
+appId: com.yhonq.coganaapp
 ---
 - launchApp
-- assertVisible: "COGUANA"
+- assertVisible: "COGANA"
 - scrollUntilVisible:
     element: "Comprar como cliente"
     direction: DOWN
@@ -10,7 +10,7 @@ appId: com.yhonq.coguanaapp
 - assertVisible: "Contrase\u00f1a"
 - assertVisible: "Entrar"
 - tapOn: "Correo"
-- inputText: "test@coguana.com"
+- inputText: "test@cogana.com"
 - tapOn: "Contrase\u00f1a"
 - inputText: "password123"
 - tapOn: "Entrar"

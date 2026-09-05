@@ -1,5 +1,5 @@
 -- B4 - Sincronizacion offline-first push/pull
--- Proyecto Coguana - Supabase/PostgreSQL
+-- Proyecto Cogana - Supabase/PostgreSQL
 -- Referencia: Esquema Backend v1.0 seccion 10 y Plan de Implementacion seccion 9
 --
 -- Contrato v1:

@@ -123,7 +123,7 @@ export function OperatorSelector() {
           autoComplete="email"
           keyboardType="email-address"
           onChangeText={setProvisionEmail}
-          placeholder="administrador@coguana.pe"
+          placeholder="administrador@cogana.pe"
           placeholderTextColor={BrandColors.muted}
           style={styles.authInput}
           value={provisionEmail}
@@ -412,7 +412,7 @@ export function OperatorSelector() {
             autoComplete="email"
             keyboardType="email-address"
             onChangeText={setEmail}
-            placeholder="operador@coguana.pe"
+            placeholder="operador@cogana.pe"
             placeholderTextColor={BrandColors.muted}
             style={styles.authInput}
             value={email}

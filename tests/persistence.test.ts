@@ -26,7 +26,7 @@ async function initialize(database: NodeSQLiteAdapter) {
 }
 
 test('conserva caja, venta y stock después de reiniciar la conexión SQLite', async (context) => {
-  const directory = mkdtempSync(join(tmpdir(), 'coguana-sqlite-'));
+  const directory = mkdtempSync(join(tmpdir(), 'cogana-sqlite-'));
   const filename = join(directory, 'persistence.sqlite');
   let firstDatabase: NodeSQLiteAdapter | null = null;
   let reopenedDatabase: NodeSQLiteAdapter | null = null;

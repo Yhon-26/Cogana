@@ -52,7 +52,7 @@ export function OnlineScreen({
       <View style={styles.header}>
         <View style={[styles.headerInner, { paddingHorizontal: gutter }]}>
           <Pressable
-            accessibilityLabel={canGoBack ? "Volver" : "Mercado Coguana"}
+            accessibilityLabel={canGoBack ? "Volver" : "Mercado Cogana"}
             accessibilityRole="button"
             accessibilityState={{ disabled: !canGoBack }}
             disabled={!canGoBack}
@@ -71,7 +71,7 @@ export function OnlineScreen({
             />
           </Pressable>
           <View style={styles.headerCopy}>
-            <Text style={styles.eyebrow}>MERCADO COGUANA</Text>
+            <Text style={styles.eyebrow}>MERCADO COGANA</Text>
             <Text accessibilityRole="header" style={styles.title}>
               {title}
             </Text>

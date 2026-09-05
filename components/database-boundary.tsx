@@ -26,7 +26,7 @@ export class DatabaseErrorBoundary extends Component<
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error(
-      "No se pudo iniciar la base local de Coguana.",
+      "No se pudo iniciar la base local de Cogana.",
       error,
       info.componentStack,
     );
@@ -39,7 +39,7 @@ export class DatabaseErrorBoundary extends Component<
           <StatusBar style="light" />
           <View style={[sharedStyles.card, styles.card]}>
             <Text accessibilityRole="header" style={styles.title}>
-              No se pudo abrir el almacenamiento de Coguana
+              No se pudo abrir el almacenamiento de Cogana
             </Text>
             <Text accessibilityRole="alert" style={styles.description}>
               Cierra y vuelve a abrir la aplicación. Tus datos existentes no se

@@ -1,5 +1,5 @@
 -- B2 - Catalogo, presentaciones e inventario
--- Proyecto Coguana - Supabase/PostgreSQL
+-- Proyecto Cogana - Supabase/PostgreSQL
 -- Referencia: Esquema Backend v1.0 secciones 3, 5, 11, 12 y 15
 --
 -- Decisiones aplicadas:

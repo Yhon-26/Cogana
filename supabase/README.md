@@ -1,7 +1,7 @@
-# Backend Coguana — Supabase/PostgreSQL
+# Backend Cogana — Supabase/PostgreSQL
 
-Esquema central de Coguana. Implementa la arquitectura descrita en
-`Esquema_Backend_Coguana_v1.0.docx` y el TRD §9.
+Esquema central de Cogana. Implementa la arquitectura descrita en
+`Esquema_Backend_Cogana_v1.0.docx` y el TRD §9.
 
 ## Estado
 
@@ -56,7 +56,10 @@ Esquema central de Coguana. Implementa la arquitectura descrita en
 - **Compras y control de inventario** añade órdenes, recepciones, lotes,
   conteos físicos y sincronización en
   `supabase/migrations/20260727000019_procurement_inventory_control.sql`.
-- Seed de desarrollo (org Coguana + tienda Santa Anita) en `supabase/seed.sql`.
+- **Correcciones y endurecimiento** (29-32) añade recepción parcial de compras,
+  corrige el drift de tres funciones, fija `search_path` vacío en 12 funciones
+  SECURITY DEFINER y elimina pgTAP de producción.
+- Seed de desarrollo (org Cogana + tienda Santa Anita) en `supabase/seed.sql`.
 - Pruebas RLS y de dominio con pgTAP en `supabase/tests/`.
 
 ## Requisitos
@@ -72,7 +75,7 @@ Esquema central de Coguana. Implementa la arquitectura descrita en
 | Local        | Desarrollo y `supabase start`        | Sintéticos       |
 | Development  | CI con Supabase cloud de desarrollo  | Sintéticos       |
 | Staging      | Pruebas E2E y aceptación             | Anonimizados     |
-| Production   | Operación real de Coguana            | Reales, acceso mínimo |
+| Production   | Operación real de Cogana            | Reales, acceso mínimo |
 
 Las migraciones son **versionadas y repetibles**: nunca editar una migración ya
 aplicada en producción (TRD §14.1). Cambios manuales en producción están
@@ -189,10 +192,15 @@ supabase migration new <nombre>
 | Inventario/pagos de pedidos | `20260729000026_order_inventory_payments.sql` | reservas, consumo, ledger y verificación de pagos |
 | Storage y delivery | `20260729000027_storage_delivery_consistency.sql` | buckets, políticas y evidencia sincronizable |
 | Identidad | `20260729000028_identity_account_hardening.sql` | último admin, perfil mínimo y baja de cuenta |
+| Recepción parcial | `20260828000029_purchase_order_partial_receipt.sql` | recepciones parciales de órdenes de compra |
+| Corrección drift | `20260902000030_fix_function_drift.sql` | re-aplica register_business_account, apply_sale_return_sync y transition_order |
+| Endurecimiento | `20260902000031_security_definer_search_path.sql` | search_path vacío en 12 funciones SECURITY DEFINER |
+| Limpieza | `20260902000032_drop_pgtap.sql` | elimina la extensión pgTAP de producción |
 
 ## Próximo paso externo
 
-Las 28 migraciones están aplicadas en el proyecto productivo vinculado
+Las migraciones 1 a 28 están aplicadas en el proyecto productivo vinculado
 (`hcvrfmuheoaxaldmpzfr`) y la Edge Function `delete-account` está desplegada.
-Pendiente: ejecutar la suite pgTAP en el stack remoto y validar push/pull con
+Pendiente: aplicar las migraciones 29 a 32 (`supabase db push`), re-ejecutar
+`supabase db lint` para confirmar que no quedan avisos y validar push/pull con
 dos teléfonos reales.

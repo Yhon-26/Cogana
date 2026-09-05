@@ -26,7 +26,7 @@ insert into auth.users (
 ) values (
   '00000000-0000-0000-0000-000000000000',
   'd1100000-0000-4000-8000-000000000001',
-  'authenticated', 'authenticated', 'product-admin@coguana.test',
+  'authenticated', 'authenticated', 'product-admin@cogana.test',
   'test-password-hash', now(), '{}'::jsonb,
   '{"full_name":"Product Admin"}'::jsonb, now(), now()
 );
@@ -34,8 +34,8 @@ insert into auth.identities (
   id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
 ) values (
   gen_random_uuid(), 'd1100000-0000-4000-8000-000000000001',
-  '{"sub":"d1100000-0000-4000-8000-000000000001","email":"product-admin@coguana.test"}'::jsonb,
-  'email', 'product-admin@coguana.test', now(), now(), now()
+  '{"sub":"d1100000-0000-4000-8000-000000000001","email":"product-admin@cogana.test"}'::jsonb,
+  'email', 'product-admin@cogana.test', now(), now(), now()
 );
 insert into public.organizations(id, name)
 values ('d1200000-0000-4000-8000-000000000001', 'Organizacion Productos');

@@ -1,5 +1,5 @@
 -- B3 - Ventas, pagos, sesiones de caja y outbox de sincronizacion
--- Proyecto Coguana - Supabase/PostgreSQL
+-- Proyecto Cogana - Supabase/PostgreSQL
 -- Referencia: Esquema Backend v1.0 secciones 6, 10, 11, 12 y 15
 --
 -- Decisiones aplicadas:

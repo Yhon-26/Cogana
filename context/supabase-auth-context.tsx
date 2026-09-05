@@ -17,14 +17,20 @@ import {
   readOperatorRefreshToken,
   saveOperatorRefreshToken,
 } from '@/auth/operator-session-storage';
+import type { DatabaseAdapter } from '@/database/contracts';
 import type { LocalUserRecord, LocalUserRole } from '@/database/models';
 import { hashPin } from '@/database/pin';
+import { getOrCreateLocalDeviceId } from '@/database/repositories/device-repository';
 import {
   linkLocalUserToAuth,
   provisionFirstLocalOperator,
   unlinkLocalUserFromAuth,
 } from '@/database/repositories/local-user-repository';
 import { useLocalDatabase } from '@/hooks/use-local-database';
+import {
+  ensureStoreDeviceAuthorized,
+  type OperatorDevicePlatform,
+} from '@/online/operator-device-api';
 
 type AuthState =
   | 'unconfigured'
@@ -41,7 +47,7 @@ type LinkCredentials = {
 
 type ProvisionCredentials = LinkCredentials & {
   storeId: string;
-  pin: string;
+  pin?: string;
 };
 
 type OperatorContext = {
@@ -134,6 +140,28 @@ async function requireAdministrativeMembership(
   };
 }
 
+async function registerCurrentDeviceIfAdmin(
+  client: SupabaseClient,
+  database: DatabaseAdapter,
+  user: LocalUserRecord
+) {
+  if (user.role !== 'administrator') return;
+  const platform: OperatorDevicePlatform =
+    Platform.OS === 'android' || Platform.OS === 'ios' || Platform.OS === 'web'
+      ? Platform.OS
+      : 'web';
+  try {
+    const deviceId = await getOrCreateLocalDeviceId(database);
+    await ensureStoreDeviceAuthorized(client, {
+      storeId: user.storeId,
+      deviceId,
+      platform,
+    });
+  } catch {
+    // El registro del dispositivo no debe bloquear la sesión del operador.
+  }
+}
+
 export function SupabaseAuthProvider({ children }: PropsWithChildren) {
   const database = useLocalDatabase();
   const [state, setState] = useState<AuthState>(
@@ -196,6 +224,7 @@ export function SupabaseAuthProvider({ children }: PropsWithChildren) {
         sessionRef.current = data.session;
         setAuthUserId(data.user.id);
         setState('authenticated');
+        void registerCurrentDeviceIfAdmin(client, database, user);
       } catch (error) {
         if (activationVersionRef.current !== activationVersion) return;
         clearMemorySession();
@@ -205,7 +234,7 @@ export function SupabaseAuthProvider({ children }: PropsWithChildren) {
         );
       }
     },
-    [canPersistSession, clearMemorySession, client]
+    [canPersistSession, clearMemorySession, client, database]
   );
 
   const linkOperator = useCallback(
@@ -247,6 +276,7 @@ export function SupabaseAuthProvider({ children }: PropsWithChildren) {
         sessionRef.current = data.session;
         setAuthUserId(data.user.id);
         setState('authenticated');
+        void registerCurrentDeviceIfAdmin(client, database, user);
       } catch (error) {
         if (activationVersionRef.current === activationVersion) {
           clearMemorySession();
@@ -297,7 +327,9 @@ export function SupabaseAuthProvider({ children }: PropsWithChildren) {
             membership.fullName?.trim() ||
             data.user.email?.trim() ||
             'Administrador',
-          credentials: await hashPin(credentials.pin),
+          credentials: credentials.pin
+            ? await hashPin(credentials.pin)
+            : null,
         });
         if (activationVersionRef.current !== activationVersion) {
           throw new Error('El operador cambio durante el aprovisionamiento.');
@@ -308,6 +340,7 @@ export function SupabaseAuthProvider({ children }: PropsWithChildren) {
         sessionRef.current = data.session;
         setAuthUserId(data.user.id);
         setState('authenticated');
+        void registerCurrentDeviceIfAdmin(client, database, localUser);
         return localUser;
       } catch (error) {
         if (activationVersionRef.current === activationVersion) {

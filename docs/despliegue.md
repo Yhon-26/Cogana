@@ -1,4 +1,4 @@
-# Despliegue de Coguana
+# Despliegue de Cogana
 
 Este documento separa la preparación reproducible incluida en el repositorio de
 las acciones que requieren cuentas, credenciales o infraestructura externa.
@@ -49,7 +49,7 @@ npx eas-cli build:configure
 
 `build:configure` valida o vuelve a vincular el proyecto EAS configurado.
 
-iOS y Android usan `com.yhonq.coguanaapp`; antes de publicar hay que confirmar
+iOS y Android usan `com.yhonq.coganaapp`; antes de publicar hay que confirmar
 que será el identificador definitivo, porque no puede cambiarse después de crear
 las fichas en las tiendas. Para iOS también se necesita una cuenta Apple
 Developer.

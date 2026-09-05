@@ -72,17 +72,17 @@ $$;
 
 select _do06_create_auth_user(
   'a1000000-0000-4000-8000-000000000001',
-  'admin-a-do06@coguana.test',
+  'admin-a-do06@cogana.test',
   'Admin A DO06'
 );
 select _do06_create_auth_user(
   'a1000000-0000-4000-8000-000000000002',
-  'seller-a-do06@coguana.test',
+  'seller-a-do06@cogana.test',
   'Seller A DO06'
 );
 select _do06_create_auth_user(
   'a1000000-0000-4000-8000-000000000003',
-  'admin-b-do06@coguana.test',
+  'admin-b-do06@cogana.test',
   'Admin B DO06'
 );
 

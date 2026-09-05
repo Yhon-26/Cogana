@@ -24,7 +24,7 @@ export function BrandLogo({ mode = "full", size = 48 }: Props) {
   }
 
   if (mode === "wordmark") {
-    return <Text style={styles.wordmark}>COGUANA</Text>;
+    return <Text style={styles.wordmark}>COGANA</Text>;
   }
 
   return (
@@ -35,7 +35,7 @@ export function BrandLogo({ mode = "full", size = 48 }: Props) {
         contentFit="contain"
       />
       <View style={styles.text}>
-        <Text style={styles.name}>COGUANA</Text>
+        <Text style={styles.name}>COGANA</Text>
       </View>
     </View>
   );

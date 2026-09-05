@@ -403,7 +403,7 @@ export default function InternalDashboardScreen() {
         Alert.alert(
           "Sin conexión",
           result.error ??
-            "Coguana necesita internet para mantener inventario y pedidos al día.",
+            "Cogana necesita internet para mantener inventario y pedidos al día.",
         );
       }
     } catch (caughtError) {

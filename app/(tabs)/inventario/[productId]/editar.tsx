@@ -16,12 +16,14 @@ import {
 } from "@/database/repositories/product-repository";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { useLocalDatabase } from "@/hooks/use-local-database";
+import { useSaveSync } from "@/hooks/use-save-sync";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
 
 export default function EditProductScreen() {
   const { productId } = useLocalSearchParams<{ productId: string }>();
   const database = useLocalDatabase();
   const { selectedUser, deviceId } = useLocalOperator();
+  const { flushNow } = useSaveSync();
   const [product, setProduct] = useState<ProductRecord | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -63,7 +65,13 @@ export default function EditProductScreen() {
         ...value,
         priceCents: product.priceCents,
       });
-      Alert.alert("Producto actualizado", "Los cambios quedaron en la outbox.");
+      const syncState = await flushNow();
+      Alert.alert(
+        "Producto actualizado",
+        syncState === "synced"
+          ? `${product.name} quedó actualizado y sincronizado con la central.`
+          : `${product.name} quedó actualizado. La central lo sincronizará automáticamente.`,
+      );
       router.back();
     } finally {
       setIsSaving(false);

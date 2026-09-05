@@ -1,8 +1,8 @@
-appId: com.yhonq.coguanaapp
+appId: com.yhonq.coganaapp
 ---
 - launchApp:
     clearState: true
-- assertVisible: "COGUANA"
+- assertVisible: "COGANA"
 - assertVisible: "Entrar al panel"
 - assertVisible: "Comprar como cliente"
 - tapOn: "Comprar como cliente"

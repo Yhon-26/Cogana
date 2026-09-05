@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-08-02T05:38:03.799Z",
-  "title": "Design System: Coguana",
+  "title": "Design System: Cogana",
   "extensions": {
     "colorMeta": {
       "ink": {
@@ -508,7 +508,7 @@
       },
       {
         "name": "The Wordmark Boundary Rule",
-        "body": "La caligrafía de Coguana vive dentro del logo; toda interfaz, cifra, etiqueta y navegación usa tipografía de sistema.",
+        "body": "La caligrafía de Cogana vive dentro del logo; toda interfaz, cifra, etiqueta y navegación usa tipografía de sistema.",
         "section": "typography"
       },
       {

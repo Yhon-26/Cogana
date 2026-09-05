@@ -126,17 +126,17 @@ $$;
 
 select _b3_create_auth_user(
   '50000000-0000-4000-8000-000000000001',
-  'admin-a-b3@coguana.test',
+  'admin-a-b3@cogana.test',
   'Admin A B3'
 );
 select _b3_create_auth_user(
   '50000000-0000-4000-8000-000000000002',
-  'seller-a-b3@coguana.test',
+  'seller-a-b3@cogana.test',
   'Seller A B3'
 );
 select _b3_create_auth_user(
   '50000000-0000-4000-8000-000000000003',
-  'admin-b-b3@coguana.test',
+  'admin-b-b3@cogana.test',
   'Admin B B3'
 );
 

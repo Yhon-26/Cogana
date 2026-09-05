@@ -8,7 +8,7 @@ import {
 import { BrandColors, FocusRing } from "@/constants/theme";
 
 /**
- * Campo base de Coguana. Conserva todas las propiedades nativas y añade el
+ * Campo base de Cogana. Conserva todas las propiedades nativas y añade el
  * indicador de foco compartido sin modificar el tamaño del control.
  */
 export const ThemedTextInput = forwardRef<NativeTextInput, TextInputProps>(

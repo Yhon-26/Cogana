@@ -35,7 +35,7 @@ insert into auth.users (
   'c1100000-0000-4000-8000-000000000001',
   'authenticated',
   'authenticated',
-  'cliente-claim@coguana.test',
+  'cliente-claim@cogana.test',
   'test-password-hash',
   now(),
   '{}'::jsonb,
@@ -48,9 +48,9 @@ insert into auth.identities (
 ) values (
   gen_random_uuid(),
   'c1100000-0000-4000-8000-000000000001',
-  '{"sub":"c1100000-0000-4000-8000-000000000001","email":"cliente-claim@coguana.test"}'::jsonb,
+  '{"sub":"c1100000-0000-4000-8000-000000000001","email":"cliente-claim@cogana.test"}'::jsonb,
   'email',
-  'cliente-claim@coguana.test',
+  'cliente-claim@cogana.test',
   now(),
   now(),
   now()
@@ -82,7 +82,7 @@ select lives_ok(
       'c1300000-0000-4000-8000-000000000001',
       'Cliente Claim',
       '999 888 777',
-      'CLIENTE-CLAIM@COGUANA.TEST'
+      'CLIENTE-CLAIM@COGANA.TEST'
     )
   $$,
   'Cliente crea su perfil'
@@ -100,7 +100,7 @@ select is(
     select email from public.customers
     where auth_user_id = 'c1100000-0000-4000-8000-000000000001'
   ),
-  'cliente-claim@coguana.test',
+  'cliente-claim@cogana.test',
   'Normaliza el correo'
 );
 select lives_ok(
@@ -109,7 +109,7 @@ select lives_ok(
       'c1300000-0000-4000-8000-000000000001',
       null,
       null,
-      'cliente-claim@coguana.test'
+      'cliente-claim@cogana.test'
     )
   $$,
   'Repetir el RPC reutiliza el perfil'

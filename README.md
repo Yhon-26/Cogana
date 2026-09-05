@@ -1,4 +1,4 @@
-# Coguana
+# Cogana
 
 Aplicación móvil online-first con resiliencia offline para POS, inventario,
 pedidos, venta online, mayoristas y delivery. Usa React Native con Expo
@@ -18,12 +18,12 @@ verdad.
 - Delivery: zonas, reparto propio, evidencia y configuración de operadores.
 - Expansión: empleados, roles, turnos, asistencia, reportes CSV, soporte,
   promociones, configuración, revisión de caja y administración de sucursales.
-- Backend: 28 migraciones Supabase con RLS, Storage privado y pruebas pgTAP.
+- Backend: 32 migraciones Supabase con RLS, Storage privado y pruebas pgTAP.
 - Base local: 19 versiones de esquema y 105 pruebas automatizadas.
 
 ## Sincronización online-first con resiliencia offline
 
-Coguana opera **online-first**: el backend central es la fuente de verdad y la
+Cogana opera **online-first**: el backend central es la fuente de verdad y la
 conexión es el modo principal. La app escribe primero en SQLite y registra
 operaciones en `sync_outbox` para sostener la continuidad ante cortes de red.
 `runSyncCycle` drena lotes idempotentes, renueva su lease y aplica el

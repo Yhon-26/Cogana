@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "Cogona",
-    "slug": "cogona-app",
+    "name": "Cogana",
+    "slug": "coguana-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "coguana",
+    "scheme": "cogana",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yhonq.cogonaapp",
+      "bundleIdentifier": "com.yhonq.coganaapp",
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -21,11 +21,12 @@
         "foregroundImage": "./assets/images/icon.png"
       },
       "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "pan",
       "predictiveBackGestureEnabled": false,
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.yhonq.cogonaapp",
+      "package": "com.yhonq.coganaapp",
       "permissions": [
         "android.permission.CAMERA"
       ]
@@ -54,7 +55,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Coguana usa la cámara para escanear productos.",
+          "cameraPermission": "Cogana usa la cámara para escanear productos.",
           "recordAudioAndroid": false
         }
       ],
@@ -62,7 +63,7 @@
         "expo-image-picker",
         {
           "photosPermission": false,
-          "cameraPermission": "Coguana usa la cámara para registrar evidencia de entrega."
+          "cameraPermission": "Cogana usa la cámara para registrar evidencia de entrega."
         }
       ]
     ],
@@ -74,7 +75,7 @@
       "enabled": true,
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0,
-      "url": "https://github.com/Yhon-26/Cogona.git"
+      "url": "https://u.expo.dev/6a1144d3-e291-4020-be46-8f8eab722341"
     },
     "extra": {
       "router": {},
@@ -83,6 +84,8 @@
       }
     },
     "owner": "yhonq",
-    "runtimeVersion": "1.0.0"
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }

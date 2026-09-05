@@ -1,0 +1,39 @@
+name: OTA
+
+# Publica una actualización over-the-air en EAS cada vez que main avanza.
+# Solo afecta JS/activos: los cambios nativos requieren un build nuevo.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ota-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HAS_EXPO_TOKEN: ${{ secrets.EXPO_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af # v4.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Publicar actualización OTA en el canal production
+        if: env.HAS_EXPO_TOKEN == 'true'
+        run: npx -y eas-cli@latest update --auto --non-interactive --channel production --platform all
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      - name: Aviso de EXPO_TOKEN faltante
+        if: env.HAS_EXPO_TOKEN != 'true'
+        run: echo "::warning::Configura el secreto EXPO_TOKEN en el repositorio para habilitar las actualizaciones OTA."

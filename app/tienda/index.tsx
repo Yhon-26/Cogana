@@ -21,6 +21,7 @@ import { OnlineScreen } from "@/components/online-shell";
 import {
   BrandColors,
   ControlSize,
+  Elevation,
   Interaction,
   Radius,
   Spacing,
@@ -211,7 +212,9 @@ export default function StoreHomeScreen() {
           </View>
           <View style={styles.promoCopy}>
             <Text style={styles.promoEyebrow}>BENEFICIO PARA TI</Text>
-            <Text style={styles.promoTitle}>{promotion.title}</Text>
+            <Text maxFontSizeMultiplier={1.4} style={styles.promoTitle}>
+              {promotion.title}
+            </Text>
             <Text style={styles.promoText}>{promotion.description}</Text>
             {promotion.couponCode ? (
               <View style={styles.coupon}>
@@ -235,7 +238,7 @@ export default function StoreHomeScreen() {
           </View>
           <View style={styles.reorderCopy}>
             <Text style={styles.reorderEyebrow}>TU COMPRA DE SIEMPRE</Text>
-            <Text style={styles.reorderTitle}>
+            <Text maxFontSizeMultiplier={1.4} style={styles.reorderTitle}>
               Repite {recentOrder.items.length} productos en un toque
             </Text>
             <Text style={styles.reorderMeta}>
@@ -333,7 +336,7 @@ export default function StoreHomeScreen() {
           <Text style={styles.sectionEyebrow}>
             {category ? category.toLocaleUpperCase("es-PE") : "DESPENSA"}
           </Text>
-          <Text style={styles.sectionTitle}>
+          <Text maxFontSizeMultiplier={1.3} style={styles.sectionTitle}>
             {query ? "Resultados" : "Productos para ti"}
           </Text>
         </View>
@@ -404,17 +407,19 @@ export default function StoreHomeScreen() {
                     pressed && styles.pressed,
                   ]}
                 >
-                  <Text style={styles.category}>{product.category}</Text>
-                  <Text numberOfLines={2} style={styles.name}>
+                  <Text maxFontSizeMultiplier={1.4} style={styles.category}>
+                    {product.category}
+                  </Text>
+                  <Text maxFontSizeMultiplier={1.4} numberOfLines={2} style={styles.name}>
                     {product.name}
                   </Text>
                 </Pressable>
                 <View style={styles.priceRow}>
                   <View style={styles.priceCopy}>
-                    <Text style={styles.price}>
+                    <Text maxFontSizeMultiplier={1.4} style={styles.price}>
                       S/ {(product.priceCents / 100).toFixed(2)}
                     </Text>
-                    <Text style={styles.unit}>
+                    <Text maxFontSizeMultiplier={1.4} style={styles.unit}>
                       por {product.pricingQuantity}{" "}
                       {product.baseUnit === "gram" ? "g" : "un."}
                     </Text>
@@ -601,7 +606,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     gap: Spacing.xs,
   },
-  searchInput: { flex: 1, color: BrandColors.text, ...Typography.body },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    color: BrandColors.text,
+    ...Typography.body,
+    paddingVertical: 15,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
   clearButton: {
     width: ControlSize.default,
     height: ControlSize.default,
@@ -665,6 +678,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BrandColors.line,
     padding: Spacing.sm,
+    ...Elevation.ambientCard,
   },
   cardMedium: { maxWidth: 216 },
   cardTop: {

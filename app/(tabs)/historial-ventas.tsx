@@ -1,8 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   Alert,
+  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -57,6 +58,62 @@ const paymentMethodLabels = {
   card: "Tarjeta",
 } as const;
 
+// Memoizada: la bandeja virtualizada solo re-renderiza la tarjeta que cambia.
+const SaleCard = memo(function SaleCard({
+  sale,
+  onOpen,
+}: {
+  sale: SaleHistorySummary;
+  onOpen: (saleId: string) => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={`Abrir venta ${sale.receiptNumber}`}
+      accessibilityRole="button"
+      onPress={() => onOpen(sale.id)}
+      style={({ pressed }) => [
+        sharedStyles.card,
+        styles.saleCard,
+        pressed && styles.pressed,
+      ]}
+    >
+      <View style={styles.saleTop}>
+        <Text
+          maxFontSizeMultiplier={1.3}
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={styles.receipt}
+        >
+          {sale.receiptNumber}
+        </Text>
+        {sale.status === "voided" ? <Pill label="Anulada" tone="danger" /> : null}
+      </View>
+      <Text maxFontSizeMultiplier={1.3} numberOfLines={1} style={styles.items}>
+        {sale.itemNames}
+      </Text>
+      <View style={styles.totalRow}>
+        <Text numberOfLines={1} style={styles.meta}>
+          {sale.actorDisplayName} · {sale.paymentMethods}
+        </Text>
+        <Text
+          maxFontSizeMultiplier={1.4}
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={[styles.total, sale.status === "voided" && styles.totalVoided]}
+        >
+          {money(sale.totalCents)}
+        </Text>
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={18}
+          color={BrandColors.muted}
+        />
+      </View>
+      <Text style={styles.meta}>{formatDateShort(new Date(sale.createdAt))}</Text>
+    </Pressable>
+  );
+});
+
 export default function SalesHistoryScreen() {
   const database = useLocalDatabase();
   const { users, selectedUser, deviceId } = useLocalOperator();
@@ -105,7 +162,7 @@ export default function SalesHistoryScreen() {
     );
   }, [query, sales]);
 
-  const open = async (saleId: string) => {
+  const open = useCallback(async (saleId: string) => {
     try {
       const [nextDetail, nextReturns] = await Promise.all([
         getSaleHistoryDetail(database, DEFAULT_STORE_ID, saleId),
@@ -122,7 +179,7 @@ export default function SalesHistoryScreen() {
         getOperatorErrorMessage(caughtError, "No se pudo abrir la venta."),
       );
     }
-  };
+  }, [database]);
 
   const closeDetail = () => {
     setDetail(null);
@@ -206,169 +263,138 @@ export default function SalesHistoryScreen() {
   const canVoid =
     detail?.sale.status === "confirmed" && selectedUser?.role === "administrator" && !returns.length;
 
+  const handleOpenSale = useCallback(
+    (saleId: string) => void open(saleId),
+    [open],
+  );
+  const renderSale = useCallback(
+    ({ item }: { item: SaleHistorySummary }) => (
+      <SaleCard sale={item} onOpen={handleOpenSale} />
+    ),
+    [handleOpenSale],
+  );
+
   return (
     <AdminScreen
       title="Historial de ventas"
       subtitle="Búsqueda, detalle, anulaciones y devoluciones"
+      scroll={false}
     >
-      {!selectedUser ? (
-        <View style={[sharedStyles.card, styles.operatorNotice]}>
-          <MaterialCommunityIcons
-            name="account-key-outline"
-            size={22}
-            color={BrandColors.warning}
-          />
-          <View style={styles.operatorNoticeCopy}>
-            <Text style={styles.operatorNoticeTitle}>Falta tu operador</Text>
-            <Text style={styles.operatorNoticeText}>
-              Activa tu perfil con PIN en la pestaña Más para anular o devolver.
-            </Text>
-          </View>
-        </View>
-      ) : null}
-
-      <View style={styles.searchWrap}>
-        <MaterialCommunityIcons
-          name="magnify"
-          size={21}
-          color={BrandColors.muted}
-        />
-        <TextInput
-          accessibilityLabel="Buscar por código, operador o producto"
-          placeholder="Código, operador o producto"
-          placeholderTextColor={BrandColors.muted}
-          style={styles.searchInput}
-          value={query}
-          onChangeText={setQuery}
-        />
-        {query ? (
-          <Pressable
-            accessibilityLabel="Limpiar búsqueda"
-            accessibilityRole="button"
-            onPress={() => setQuery("")}
-            style={styles.clearButton}
-          >
-            <MaterialCommunityIcons
-              name="close-circle"
-              size={19}
-              color={BrandColors.muted}
-            />
-          </Pressable>
-        ) : null}
-      </View>
-
-      <SectionTitle
-        action={<Pill label={`${visible.length}`} tone="neutral" />}
-      >
-        Operaciones
-      </SectionTitle>
-
-      {isLoading ? (
-        <View style={[sharedStyles.card, styles.feedback]}>
-          <Text style={styles.muted}>Cargando ventas…</Text>
-        </View>
-      ) : loadError ? (
-        <View style={[sharedStyles.card, styles.feedback]}>
-          <Text accessibilityRole="alert" style={styles.error}>
-            {loadError}
-          </Text>
-          <PrimaryButton label="Reintentar" onPress={() => void load()} />
-        </View>
-      ) : visible.length === 0 ? (
-        <View style={[sharedStyles.card, styles.empty]}>
-          <View style={styles.emptyIcon}>
-            <MaterialCommunityIcons
-              name="receipt-text-outline"
-              size={30}
-              color={BrandColors.green}
-            />
-          </View>
-          <Text maxFontSizeMultiplier={1.3} style={styles.emptyTitle}>
-            {sales.length === 0
-              ? "Aún no hay ventas registradas"
-              : "Sin resultados"}
-          </Text>
-          <Text style={styles.muted}>
-            {sales.length === 0
-              ? "Cada venta cobrada quedará aquí con su recibo, operador y pagos."
-              : "Revisa el código de recibo, el operador o el producto buscado."}
-          </Text>
-          {sales.length === 0 ? (
-            <PrimaryButton
-              label="Nueva venta"
-              icon="cash-register"
-              onPress={() => router.push("/venta")}
-            />
-          ) : (
-            <PrimaryButton
-              label="Limpiar búsqueda"
-              icon="magnify"
-              onPress={() => setQuery("")}
-            />
-          )}
-        </View>
-      ) : (
-        <View style={styles.saleList}>
-          {visible.map((sale) => (
-            <Pressable
-              accessibilityLabel={`Abrir venta ${sale.receiptNumber}`}
-              accessibilityRole="button"
-              key={sale.id}
-              onPress={() => void open(sale.id)}
-              style={({ pressed }) => [
-                sharedStyles.card,
-                styles.saleCard,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.saleTop}>
-                <Text
-                  maxFontSizeMultiplier={1.3}
-                  adjustsFontSizeToFit
-                  numberOfLines={1}
-                  style={styles.receipt}
-                >
-                  {sale.receiptNumber}
-                </Text>
-                {sale.status === "voided" ? (
-                  <Pill label="Anulada" tone="danger" />
-                ) : null}
-              </View>
-              <Text
-                maxFontSizeMultiplier={1.3}
-                numberOfLines={1}
-                style={styles.items}
-              >
-                {sale.itemNames}
-              </Text>
-              <View style={styles.totalRow}>
-                <Text numberOfLines={1} style={styles.meta}>
-                  {sale.actorDisplayName} · {sale.paymentMethods}
-                </Text>
-                <Text
-                  maxFontSizeMultiplier={1.4}
-                  adjustsFontSizeToFit
-                  numberOfLines={1}
-                  style={[
-                    styles.total,
-                    sale.status === "voided" && styles.totalVoided,
-                  ]}
-                >
-                  {money(sale.totalCents)}
-                </Text>
+      <FlatList
+        data={isLoading || loadError ? [] : visible}
+        keyExtractor={(sale) => sale.id}
+        renderItem={renderSale}
+        ListHeaderComponent={
+          <>
+            {!selectedUser ? (
+              <View style={[sharedStyles.card, styles.operatorNotice]}>
                 <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={18}
-                  color={BrandColors.muted}
+                  name="account-key-outline"
+                  size={22}
+                  color={BrandColors.warning}
+                />
+                <View style={styles.operatorNoticeCopy}>
+                  <Text style={styles.operatorNoticeTitle}>
+                    Falta tu operador
+                  </Text>
+                  <Text style={styles.operatorNoticeText}>
+                    Activa tu perfil con PIN en la pestaña Más para anular o
+                    devolver.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            <View style={styles.searchWrap}>
+              <MaterialCommunityIcons
+                name="magnify"
+                size={21}
+                color={BrandColors.muted}
+              />
+              <TextInput
+                accessibilityLabel="Buscar por código, operador o producto"
+                placeholder="Código, operador o producto"
+                placeholderTextColor={BrandColors.muted}
+                style={styles.searchInput}
+                value={query}
+                onChangeText={setQuery}
+              />
+              {query ? (
+                <Pressable
+                  accessibilityLabel="Limpiar búsqueda"
+                  accessibilityRole="button"
+                  onPress={() => setQuery("")}
+                  style={styles.clearButton}
+                >
+                  <MaterialCommunityIcons
+                    name="close-circle"
+                    size={19}
+                    color={BrandColors.muted}
+                  />
+                </Pressable>
+              ) : null}
+            </View>
+
+            <SectionTitle
+              action={<Pill label={`${visible.length}`} tone="neutral" />}
+            >
+              Operaciones
+            </SectionTitle>
+          </>
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={[sharedStyles.card, styles.feedback]}>
+              <Text style={styles.muted}>Cargando ventas…</Text>
+            </View>
+          ) : loadError ? (
+            <View style={[sharedStyles.card, styles.feedback]}>
+              <Text accessibilityRole="alert" style={styles.error}>
+                {loadError}
+              </Text>
+              <PrimaryButton label="Reintentar" onPress={() => void load()} />
+            </View>
+          ) : (
+            <View style={[sharedStyles.card, styles.empty]}>
+              <View style={styles.emptyIcon}>
+                <MaterialCommunityIcons
+                  name="receipt-text-outline"
+                  size={30}
+                  color={BrandColors.green}
                 />
               </View>
-              <Text style={styles.meta}>
-                {formatDateShort(new Date(sale.createdAt))}
+              <Text maxFontSizeMultiplier={1.3} style={styles.emptyTitle}>
+                {sales.length === 0
+                  ? "Aún no hay ventas registradas"
+                  : "Sin resultados"}
               </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
+              <Text style={styles.muted}>
+                {sales.length === 0
+                  ? "Cada venta cobrada quedará aquí con su recibo, operador y pagos."
+                  : "Revisa el código de recibo, el operador o el producto buscado."}
+              </Text>
+              {sales.length === 0 ? (
+                <PrimaryButton
+                  label="Nueva venta"
+                  icon="cash-register"
+                  onPress={() => router.push("/venta")}
+                />
+              ) : (
+                <PrimaryButton
+                  label="Limpiar búsqueda"
+                  icon="magnify"
+                  onPress={() => setQuery("")}
+                />
+              )}
+            </View>
+          )
+        }
+        contentContainerStyle={styles.saleList}
+        initialNumToRender={10}
+        maxToRenderPerBatch={8}
+        showsVerticalScrollIndicator={false}
+        windowSize={7}
+      />
 
       <ModalSurface
         animationType="slide"
@@ -717,7 +743,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   error: { color: BrandColors.danger, ...Typography.caption },
-  saleList: { gap: Spacing.sm },
+  saleList: { gap: Spacing.sm, paddingBottom: Spacing.lg },
   saleCard: {
     gap: Spacing.xxs,
     ...Elevation.ambientCard,

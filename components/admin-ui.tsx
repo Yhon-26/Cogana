@@ -87,7 +87,13 @@ export function AdminScreen({
           {right}
         </View>
       </View>
-      <View style={[styles.body, { padding: bodySpacing, gap: bodySpacing }]}>
+      <View
+        style={[
+          styles.body,
+          { padding: bodySpacing, gap: bodySpacing },
+          !scroll && styles.bodyFill,
+        ]}
+      >
         {children}
       </View>
     </>
@@ -331,6 +337,7 @@ const styles = StyleSheet.create({
     maxWidth: Layout.operationMaxWidth,
     alignSelf: "center",
   },
+  bodyFill: { flex: 1 },
   sectionRow: {
     flexDirection: "row",
     flexWrap: "wrap",

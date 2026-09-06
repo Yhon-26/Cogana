@@ -1,7 +1,8 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import {
   Alert,
+  FlatList,
   Modal,
   Pressable,
   ScrollView,
@@ -228,6 +229,77 @@ function Choice<T extends string>({
   );
 }
 
+// Memoizada: la bandeja virtualizada solo re-renderiza la tarjeta que cambia.
+const OrderCard = memo(function OrderCard({
+  order,
+  onOpen,
+}: {
+  order: OrderSummaryRecord;
+  onOpen: (order: OrderSummaryRecord) => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={`Abrir pedido ${order.orderNumber} de ${order.customerName}`}
+      accessibilityRole="button"
+      onPress={() => onOpen(order)}
+      style={({ pressed }) => [
+        sharedStyles.card,
+        styles.orderCard,
+        pressed && styles.pressed,
+      ]}
+    >
+      <View style={styles.orderTop}>
+        <Text
+          maxFontSizeMultiplier={1.3}
+          style={styles.orderNumber}
+          adjustsFontSizeToFit
+          numberOfLines={1}
+        >
+          {order.orderNumber}
+        </Text>
+        <Pill label={statusLabels[order.status]} tone={statusTone(order.status)} />
+      </View>
+      <Text maxFontSizeMultiplier={1.3} numberOfLines={1} style={styles.customer}>
+        {order.customerName}
+      </Text>
+      <View style={styles.metaRow}>
+        <MaterialCommunityIcons
+          name={
+            sourceMeta[order.source].icon as keyof typeof MaterialCommunityIcons.glyphMap
+          }
+          size={14}
+          color={BrandColors.muted}
+        />
+        <Text numberOfLines={1} style={styles.meta}>
+          {sourceMeta[order.source].label} · {order.itemCount} producto
+          {order.itemCount === 1 ? "" : "s"} ·{" "}
+          {order.fulfillmentType === "delivery"
+            ? (order.deliveryZoneName ?? "Delivery")
+            : "Recojo"}
+        </Text>
+      </View>
+      <View style={styles.totalRow}>
+        <Text style={styles.date}>
+          {formatDateShort(new Date(order.createdAt))}
+        </Text>
+        <Text
+          maxFontSizeMultiplier={1.4}
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={styles.total}
+        >
+          {formatMoney(order.finalTotalCents ?? order.estimatedTotalCents)}
+        </Text>
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={18}
+          color={BrandColors.muted}
+        />
+      </View>
+    </Pressable>
+  );
+});
+
 function FormDialogHeader({
   icon,
   title,
@@ -330,27 +402,36 @@ export default function OrdersScreen() {
     setProductQuery("");
   };
 
-  const openDetail = async (order: OrderSummaryRecord) => {
-    try {
-      const detail = await getOrderDetail(database, DEFAULT_STORE_ID, order.id);
-      setExpanded(detail);
-      setPrepared(
-        Object.fromEntries(
-          (detail?.items ?? []).map((item) => [
-            item.id,
-            item.baseUnitSnapshot === "gram"
-              ? String((item.preparedQuantity ?? item.requestedQuantity) / 1000)
-              : String(item.preparedQuantity ?? item.requestedQuantity),
-          ]),
-        ),
-      );
-    } catch (caughtError) {
-      Alert.alert(
-        "No se pudo abrir",
-        getOperatorErrorMessage(caughtError, "No se pudo abrir el pedido."),
-      );
-    }
-  };
+  const openDetail = useCallback(
+    async (order: OrderSummaryRecord) => {
+      try {
+        const detail = await getOrderDetail(
+          database,
+          DEFAULT_STORE_ID,
+          order.id,
+        );
+        setExpanded(detail);
+        setPrepared(
+          Object.fromEntries(
+            (detail?.items ?? []).map((item) => [
+              item.id,
+              item.baseUnitSnapshot === "gram"
+                ? String(
+                    (item.preparedQuantity ?? item.requestedQuantity) / 1000,
+                  )
+                : String(item.preparedQuantity ?? item.requestedQuantity),
+            ]),
+          ),
+        );
+      } catch (caughtError) {
+        Alert.alert(
+          "No se pudo abrir",
+          getOperatorErrorMessage(caughtError, "No se pudo abrir el pedido."),
+        );
+      }
+    },
+    [database],
+  );
 
   const reloadExpanded = async (orderId: string) => {
     const detail = await getOrderDetail(database, DEFAULT_STORE_ID, orderId);
@@ -694,10 +775,22 @@ export default function OrdersScreen() {
   const substitutionSaveDisabled =
     !substitutionItemId || !replacementProductId || isSaving;
 
+  const handleOpenOrder = useCallback(
+    (order: OrderSummaryRecord) => void openDetail(order),
+    [openDetail],
+  );
+  const renderOrder = useCallback(
+    ({ item }: { item: OrderSummaryRecord }) => (
+      <OrderCard order={item} onOpen={handleOpenOrder} />
+    ),
+    [handleOpenOrder],
+  );
+
   return (
     <AdminScreen
       title="Pedidos"
       subtitle="Bandeja operativa para WhatsApp, teléfono y canal online"
+      scroll={false}
       right={
         <Pressable
           accessibilityLabel="Crear pedido"
@@ -713,159 +806,102 @@ export default function OrdersScreen() {
         </Pressable>
       }
     >
-      {!selectedUser ? (
-        <View style={[sharedStyles.card, styles.operatorNotice]}>
-          <MaterialCommunityIcons
-            name="account-key-outline"
-            size={22}
-            color={BrandColors.warning}
-          />
-          <View style={styles.operatorNoticeCopy}>
-            <Text style={styles.operatorNoticeTitle}>Falta tu operador</Text>
-            <Text style={styles.operatorNoticeText}>
-              Activa tu perfil con PIN en la pestaña Más para registrar o mover
-              pedidos.
-            </Text>
-          </View>
-        </View>
-      ) : null}
+      <FlatList
+        data={isLoading || error ? [] : visibleOrders}
+        keyExtractor={(order) => order.id}
+        renderItem={renderOrder}
+        ListHeaderComponent={
+          <>
+            {!selectedUser ? (
+              <View style={[sharedStyles.card, styles.operatorNotice]}>
+                <MaterialCommunityIcons
+                  name="account-key-outline"
+                  size={22}
+                  color={BrandColors.warning}
+                />
+                <View style={styles.operatorNoticeCopy}>
+                  <Text style={styles.operatorNoticeTitle}>
+                    Falta tu operador
+                  </Text>
+                  <Text style={styles.operatorNoticeText}>
+                    Activa tu perfil con PIN en la pestaña Más para registrar o
+                    mover pedidos.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
 
-      <View style={styles.filterRow}>
-        <Choice
-          value="active"
-          selected={filter}
-          label="En curso"
-          icon="clipboard-list-outline"
-          onPress={setFilter}
-        />
-        <Choice
-          value="history"
-          selected={filter}
-          label="Historial"
-          icon="history"
-          onPress={setFilter}
-        />
-      </View>
+            <View style={styles.filterRow}>
+              <Choice
+                value="active"
+                selected={filter}
+                label="En curso"
+                icon="clipboard-list-outline"
+                onPress={setFilter}
+              />
+              <Choice
+                value="history"
+                selected={filter}
+                label="Historial"
+                icon="history"
+                onPress={setFilter}
+              />
+            </View>
 
-      <SectionTitle
-        action={<Pill label={`${visibleOrders.length}`} tone="neutral" />}
-      >
-        {filter === "active" ? "Bandeja activa" : "Pedidos cerrados"}
-      </SectionTitle>
-
-      {isLoading ? (
-        <View style={[sharedStyles.card, styles.feedback]}>
-          <Text style={styles.muted}>Cargando pedidos locales…</Text>
-        </View>
-      ) : error ? (
-        <View style={[sharedStyles.card, styles.feedback]}>
-          <Text accessibilityRole="alert" style={styles.error}>
-            {getOperatorErrorMessage(
-              error,
-              "No se pudieron cargar los pedidos.",
-            )}
-          </Text>
-          <PrimaryButton label="Reintentar" onPress={() => void refresh()} />
-        </View>
-      ) : visibleOrders.length === 0 ? (
-        <View style={[sharedStyles.card, styles.empty]}>
-          <View style={styles.emptyIcon}>
-            <MaterialCommunityIcons
-              name="clipboard-text-clock-outline"
-              size={30}
-              color={BrandColors.green}
-            />
-          </View>
-          <Text maxFontSizeMultiplier={1.3} style={styles.emptyTitle}>
-            Sin pedidos en esta vista
-          </Text>
-          <Text style={styles.muted}>
-            Registra el primer pedido recibido por teléfono o WhatsApp.
-          </Text>
-          {filter === "active" ? (
-            <PrimaryButton
-              label="Nuevo pedido"
-              icon="plus"
-              onPress={() => setCreateVisible(true)}
-              disabled={!selectedUser}
-            />
-          ) : null}
-        </View>
-      ) : (
-        <View style={styles.orderList}>
-          {visibleOrders.map((order) => (
-            <Pressable
-              accessibilityLabel={`Abrir pedido ${order.orderNumber} de ${order.customerName}`}
-              accessibilityRole="button"
-              key={order.id}
-              onPress={() => void openDetail(order)}
-              style={({ pressed }) => [
-                sharedStyles.card,
-                styles.orderCard,
-                pressed && styles.pressed,
-              ]}
+            <SectionTitle
+              action={<Pill label={`${visibleOrders.length}`} tone="neutral" />}
             >
-              <View style={styles.orderTop}>
-                <Text
-                  maxFontSizeMultiplier={1.3}
-                  style={styles.orderNumber}
-                  adjustsFontSizeToFit
-                  numberOfLines={1}
-                >
-                  {order.orderNumber}
-                </Text>
-                <Pill
-                  label={statusLabels[order.status]}
-                  tone={statusTone(order.status)}
-                />
-              </View>
-              <Text
-                maxFontSizeMultiplier={1.3}
-                numberOfLines={1}
-                style={styles.customer}
-              >
-                {order.customerName}
+              {filter === "active" ? "Bandeja activa" : "Pedidos cerrados"}
+            </SectionTitle>
+          </>
+        }
+        ListEmptyComponent={
+          isLoading ? (
+            <View style={[sharedStyles.card, styles.feedback]}>
+              <Text style={styles.muted}>Cargando pedidos locales…</Text>
+            </View>
+          ) : error ? (
+            <View style={[sharedStyles.card, styles.feedback]}>
+              <Text accessibilityRole="alert" style={styles.error}>
+                {getOperatorErrorMessage(
+                  error,
+                  "No se pudieron cargar los pedidos.",
+                )}
               </Text>
-              <View style={styles.metaRow}>
+              <PrimaryButton label="Reintentar" onPress={() => void refresh()} />
+            </View>
+          ) : (
+            <View style={[sharedStyles.card, styles.empty]}>
+              <View style={styles.emptyIcon}>
                 <MaterialCommunityIcons
-                  name={
-                    sourceMeta[order.source].icon as keyof typeof MaterialCommunityIcons.glyphMap
-                  }
-                  size={14}
-                  color={BrandColors.muted}
-                />
-                <Text numberOfLines={1} style={styles.meta}>
-                  {sourceMeta[order.source].label} · {order.itemCount}{" "}
-                  producto{order.itemCount === 1 ? "" : "s"} ·{" "}
-                  {order.fulfillmentType === "delivery"
-                    ? (order.deliveryZoneName ?? "Delivery")
-                    : "Recojo"}
-                </Text>
-              </View>
-              <View style={styles.totalRow}>
-                <Text style={styles.date}>
-                  {formatDateShort(new Date(order.createdAt))}
-                </Text>
-                <Text
-                  maxFontSizeMultiplier={1.4}
-                  adjustsFontSizeToFit
-                  numberOfLines={1}
-                  style={styles.total}
-                >
-                  {formatMoney(
-                    order.finalTotalCents ?? order.estimatedTotalCents,
-                  )}
-                </Text>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={18}
-                  color={BrandColors.muted}
+                  name="clipboard-text-clock-outline"
+                  size={30}
+                  color={BrandColors.green}
                 />
               </View>
-            </Pressable>
-          ))}
-        </View>
-      )}
+              <Text maxFontSizeMultiplier={1.3} style={styles.emptyTitle}>
+                Sin pedidos en esta vista
+              </Text>
+              <Text style={styles.muted}>
+                Registra el primer pedido recibido por teléfono o WhatsApp.
+              </Text>
+              {filter === "active" ? (
+                <PrimaryButton
+                  label="Nuevo pedido"
+                  icon="plus"
+                  onPress={() => setCreateVisible(true)}
+                  disabled={!selectedUser}
+                />
+              ) : null}
+            </View>
+          )
+        }
+        contentContainerStyle={styles.orderList}
+        initialNumToRender={10}
+        maxToRenderPerBatch={8}
+        showsVerticalScrollIndicator={false}
+        windowSize={7}
+      />
 
       <Modal
         animationType={preferences.reduceMotion ? "none" : "slide"}

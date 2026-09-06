@@ -140,7 +140,7 @@ export default function SyncDiagnosticsScreen() {
   };
 
   const errors = operations.filter((operation) => operation.status === "error");
-  const deviceRows: Array<{ icon: string; label: string; value: string }> = [
+  const deviceRows: { icon: string; label: string; value: string }[] = [
     {
       icon: "cloud-check-outline",
       label: "Sesión central",

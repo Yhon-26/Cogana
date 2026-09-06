@@ -1,19 +1,30 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import { useMemo, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import {
+  ActionButton,
   AdminScreen,
   Pill,
   PrimaryButton,
   SectionTitle,
   sharedStyles,
 } from "@/components/admin-ui";
+import { ModalSurface } from "@/components/modal-surface";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   BrandColors,
   ComponentMetrics,
   ControlSize,
+  Elevation,
   Interaction,
   Radius,
   Spacing,
@@ -28,11 +39,13 @@ import { formatSoles } from "@/lib/money";
 import { formatPricingUnit } from "@/lib/units";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
 
-function PriceEditor({
+function PriceSheet({
   product,
+  onClose,
   onSave,
 }: {
   product: ProductRecord;
+  onClose: () => void;
   onSave: (priceCents: number) => Promise<void>;
 }) {
   const [value, setValue] = useState((product.priceCents / 100).toFixed(2));
@@ -57,7 +70,7 @@ function PriceEditor({
     setIsSaving(true);
     try {
       await onSave(parsedCents);
-      setValue((parsedCents / 100).toFixed(2));
+      onClose();
       Alert.alert(
         "Precio actualizado",
         `${product.name}\nNuevo precio: ${formatSoles(parsedCents)} por ${pricingUnit}`,
@@ -76,28 +89,44 @@ function PriceEditor({
   };
 
   return (
-    <View style={[sharedStyles.card, styles.priceCard]}>
-      <View style={styles.productHeader}>
-        <View style={styles.productIcon}>
-          <MaterialCommunityIcons
-            name="barley"
-            size={23}
-            color={BrandColors.green}
-          />
-        </View>
-        <View style={styles.productCopy}>
-          <Text style={styles.productName}>{product.name}</Text>
-          <Text style={styles.productMeta}>
+    <>
+      <View style={styles.sheetHeader}>
+        <View style={styles.sheetHeaderCopy}>
+          <Text
+            maxFontSizeMultiplier={1.3}
+            numberOfLines={2}
+            style={styles.sheetTitle}
+          >
+            {product.name}
+          </Text>
+          <Text style={styles.sheetMeta}>
             {product.sku} · {product.category}
           </Text>
         </View>
         {changed ? <Pill label="Sin guardar" tone="gold" /> : null}
+        <Pressable
+          accessibilityLabel="Cerrar editor de precio"
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={onClose}
+          style={styles.sheetClose}
+        >
+          <MaterialCommunityIcons
+            name="close"
+            size={22}
+            color={BrandColors.muted}
+          />
+        </Pressable>
       </View>
 
-      <Text style={styles.inputLabel}>Precio de venta por {pricingUnit}</Text>
+      <Text style={styles.currentLabel}>
+        PRECIO ACTUAL · {formatSoles(product.priceCents)} / {pricingUnit}
+      </Text>
+
+      <Text style={styles.inputLabel}>Nuevo precio por {pricingUnit}</Text>
       <View style={styles.editorRow}>
         <Pressable
-          accessibilityLabel="Reducir precio"
+          accessibilityLabel="Reducir precio en diez centavos"
           accessibilityRole="button"
           hitSlop={Spacing.xxs}
           onPress={() => adjust(-0.1)}
@@ -119,10 +148,9 @@ function PriceEditor({
             style={styles.priceInput}
             value={value}
           />
-          <Text style={styles.unit}>/ {pricingUnit}</Text>
         </View>
         <Pressable
-          accessibilityLabel="Aumentar precio"
+          accessibilityLabel="Aumentar precio en diez centavos"
           accessibilityRole="button"
           hitSlop={Spacing.xxs}
           onPress={() => adjust(0.1)}
@@ -140,41 +168,54 @@ function PriceEditor({
           Ingresa un precio mayor que cero.
         </Text>
       ) : null}
-      <Pressable
-        accessibilityLabel={`Guardar precio de ${product.name}`}
-        accessibilityRole="button"
-        accessibilityState={{ disabled: !changed || isSaving, busy: isSaving }}
-        disabled={!changed || isSaving}
-        onPress={() => void save()}
-        style={({ pressed }) => [
-          styles.saveButton,
-          (!changed || isSaving) && styles.saveButtonDisabled,
-          pressed && changed && !isSaving && styles.pressed,
-        ]}
-      >
-        <MaterialCommunityIcons
-          name="content-save-outline"
-          size={18}
-          color={
-            changed && !isSaving ? BrandColors.white : BrandColors.mutedLight
-          }
+
+      <View style={styles.sheetFooter}>
+        {changed ? (
+          <ActionButton
+            compact
+            label="Restablecer"
+            icon="restore"
+            onPress={() => setValue((product.priceCents / 100).toFixed(2))}
+            style={styles.resetButton}
+            tone="ghost"
+          />
+        ) : null}
+        <PrimaryButton
+          label="Guardar precio"
+          icon="content-save-outline"
+          loading={isSaving}
+          onPress={() => void save()}
+          disabled={!changed || isSaving}
+          style={styles.saveButton}
         />
-        <Text
-          style={[
-            styles.saveText,
-            (!changed || isSaving) && styles.saveTextDisabled,
-          ]}
-        >
-          {isSaving ? "Guardando…" : "Guardar precio"}
-        </Text>
-      </Pressable>
-    </View>
+      </View>
+    </>
   );
 }
 
 export default function PricesScreen() {
   const { database, products, isLoading, error, refresh } = useLocalProducts();
   const { selectedUser, deviceId } = useLocalOperator();
+  const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("all");
+  const [editing, setEditing] = useState<ProductRecord | null>(null);
+
+  const categories = useMemo(
+    () => Array.from(new Set(products.map((product) => product.category))),
+    [products],
+  );
+
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase("es-PE");
+    return products.filter(
+      (product) =>
+        (category === "all" || product.category === category) &&
+        (!normalized ||
+          `${product.name} ${product.sku}`
+            .toLocaleLowerCase("es-PE")
+            .includes(normalized)),
+    );
+  }, [category, products, query]);
 
   const savePrice = async (productId: string, priceCents: number) => {
     if (!selectedUser || !deviceId) {
@@ -192,33 +233,89 @@ export default function PricesScreen() {
     await refresh(false);
   };
 
-  if (isLoading) {
-    return (
-      <AdminScreen
-        title="Actualización de precios"
-        subtitle="Modifica el precio base de cada producto"
-      >
-        <View style={[sharedStyles.card, styles.feedbackCard]}>
-          <Text style={styles.feedbackTitle}>Cargando precios…</Text>
-          <Text style={styles.feedbackText}>
-            Consultando el catálogo disponible.
-          </Text>
-        </View>
-      </AdminScreen>
-    );
-  }
+  return (
+    <AdminScreen
+      title="Precios"
+      subtitle="Modifica el precio base de cada producto"
+    >
+      <View style={styles.searchWrap}>
+        <MaterialCommunityIcons
+          name="magnify"
+          size={21}
+          color={BrandColors.muted}
+        />
+        <TextInput
+          accessibilityLabel="Buscar producto o código"
+          placeholder="Buscar producto o código"
+          placeholderTextColor={BrandColors.muted}
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+        />
+        {query ? (
+          <Pressable
+            accessibilityLabel="Limpiar búsqueda"
+            accessibilityRole="button"
+            onPress={() => setQuery("")}
+            style={styles.clearButton}
+          >
+            <MaterialCommunityIcons
+              name="close-circle"
+              size={19}
+              color={BrandColors.muted}
+            />
+          </Pressable>
+        ) : null}
+      </View>
 
-  if (error) {
-    return (
-      <AdminScreen
-        title="Actualización de precios"
-        subtitle="Modifica el precio base de cada producto"
+      {categories.length > 1 ? (
+        <ScrollView
+          horizontal
+          contentContainerStyle={styles.categoryList}
+          showsHorizontalScrollIndicator={false}
+        >
+          {["all", ...categories].map((candidate) => (
+            <Pressable
+              accessibilityLabel={
+                candidate === "all"
+                  ? "Todas las categorías"
+                  : `Categoría ${candidate}`
+              }
+              accessibilityRole="button"
+              accessibilityState={{ selected: category === candidate }}
+              key={candidate}
+              onPress={() => setCategory(candidate)}
+              style={[
+                styles.categoryChip,
+                category === candidate && styles.categoryChipActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.categoryText,
+                  category === candidate && styles.categoryTextActive,
+                ]}
+              >
+                {candidate === "all" ? "Todas" : candidate}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
+
+      <SectionTitle
+        action={<Pill label={`${filtered.length}`} tone="neutral" />}
       >
-        <View style={[sharedStyles.card, styles.feedbackCard]}>
-          <Text style={styles.feedbackTitle}>
-            No se pudieron cargar los precios
-          </Text>
-          <Text accessibilityRole="alert" style={styles.feedbackText}>
+        Lista de precios
+      </SectionTitle>
+
+      {isLoading ? (
+        <View style={[sharedStyles.card, styles.feedback]}>
+          <Text style={styles.muted}>Cargando precios…</Text>
+        </View>
+      ) : error ? (
+        <View style={[sharedStyles.card, styles.feedback]}>
+          <Text accessibilityRole="alert" style={styles.errorText}>
             {getOperatorErrorMessage(
               error,
               "No se pudieron cargar los precios.",
@@ -229,94 +326,247 @@ export default function PricesScreen() {
             onPress={() => void refresh()}
           />
         </View>
-      </AdminScreen>
-    );
-  }
-
-  return (
-    <AdminScreen
-      title="Actualización de precios"
-      subtitle="Modifica el precio base de cada producto"
-    >
-      <View style={[sharedStyles.card, styles.infoCard]}>
-        <View style={styles.infoIcon}>
-          <MaterialCommunityIcons
-            name="information-outline"
-            size={21}
-            color={BrandColors.warning}
-          />
+      ) : filtered.length === 0 ? (
+        <View style={[sharedStyles.card, styles.empty]}>
+          <View style={styles.emptyIcon}>
+            <MaterialCommunityIcons
+              name="tag-outline"
+              size={30}
+              color={BrandColors.green}
+            />
+          </View>
+          <Text maxFontSizeMultiplier={1.3} style={styles.emptyTitle}>
+            {products.length === 0
+              ? "Aún no hay productos"
+              : "Sin resultados"}
+          </Text>
+          <Text style={styles.muted}>
+            {products.length === 0
+              ? "Agrega productos desde Más y aparecerán aquí para actualizar precios."
+              : "Prueba con otro nombre, código o categoría."}
+          </Text>
+          {products.length === 0 ? (
+            <PrimaryButton
+              label="Ir al catálogo"
+              icon="package-variant-closed"
+              onPress={() => router.push("/catalogo-admin")}
+            />
+          ) : (
+            <PrimaryButton
+              label="Limpiar búsqueda"
+              icon="magnify"
+              onPress={() => {
+                setQuery("");
+                setCategory("all");
+              }}
+            />
+          )}
         </View>
-        <Text style={styles.infoText}>
-          Los cambios conservan su historial y se confirman de forma segura en
-          la base central.
-        </Text>
-      </View>
+      ) : (
+        <View style={styles.list}>
+          {filtered.map((product) => (
+            <Pressable
+              accessibilityLabel={`Editar precio de ${product.name}, actual ${formatSoles(product.priceCents)}`}
+              accessibilityRole="button"
+              key={product.id}
+              onPress={() => setEditing(product)}
+              style={({ pressed }) => [
+                sharedStyles.card,
+                styles.row,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.rowIcon}>
+                <MaterialCommunityIcons
+                  name="tag-outline"
+                  size={20}
+                  color={BrandColors.green}
+                />
+              </View>
+              <View style={styles.rowCopy}>
+                <Text
+                  maxFontSizeMultiplier={1.3}
+                  numberOfLines={1}
+                  style={styles.rowName}
+                >
+                  {product.name}
+                </Text>
+                <Text numberOfLines={1} style={styles.rowMeta}>
+                  {product.sku} · {product.category}
+                </Text>
+              </View>
+              <Text
+                maxFontSizeMultiplier={1.4}
+                adjustsFontSizeToFit
+                numberOfLines={1}
+                style={styles.rowPrice}
+              >
+                {formatSoles(product.priceCents)}
+              </Text>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={18}
+                color={BrandColors.muted}
+              />
+            </Pressable>
+          ))}
+        </View>
+      )}
 
-      <SectionTitle
-        action={
-          <Text style={styles.productCount}>{products.length} productos</Text>
-        }
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={styles.sheet}
+        onClose={() => setEditing(null)}
+        placement="bottom"
+        visible={editing !== null}
       >
-        Lista de precios
-      </SectionTitle>
-      <View style={styles.list}>
-        {products.map((product) => (
-          <PriceEditor
-            key={product.id}
-            product={product}
-            onSave={(priceCents) => savePrice(product.id, priceCents)}
+        {editing ? (
+          <PriceSheet
+            product={editing}
+            onClose={() => setEditing(null)}
+            onSave={(priceCents) => savePrice(editing.id, priceCents)}
           />
-        ))}
-      </View>
+        ) : null}
+      </ModalSurface>
     </AdminScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  feedbackCard: { gap: Spacing.sm, padding: Spacing.lg },
-  feedbackTitle: { color: BrandColors.text, ...Typography.h3 },
-  feedbackText: { color: BrandColors.muted, ...Typography.caption },
-  infoCard: {
+  searchWrap: {
+    minHeight: ControlSize.default,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: BrandColors.line,
+    backgroundColor: BrandColors.white,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: BrandColors.goldLight,
-    borderColor: BrandColors.goldDark,
-    padding: Spacing.md,
+    paddingLeft: Spacing.md,
+    gap: Spacing.xs,
   },
-  infoIcon: {
-    width: ControlSize.compact,
-    height: ControlSize.compact,
-    borderRadius: Radius.sm,
-    backgroundColor: BrandColors.goldLight,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.sm,
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    color: BrandColors.text,
+    ...Typography.body,
+    paddingVertical: 13,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
-  infoText: { flex: 1, color: BrandColors.warning, ...Typography.caption },
-  productCount: { color: BrandColors.muted, ...Typography.label },
-  list: { gap: Spacing.sm },
-  priceCard: { padding: Spacing.md },
-  productHeader: { flexDirection: "row", alignItems: "center" },
-  productIcon: {
+  clearButton: {
     width: ControlSize.default,
     height: ControlSize.default,
-    borderRadius: ComponentMetrics.inputRadius,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryList: {
+    flexDirection: "row",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xxs,
+  },
+  categoryChip: {
+    minHeight: ControlSize.compact,
+    borderRadius: Radius.round,
+    borderWidth: 1,
+    borderColor: BrandColors.line,
+    backgroundColor: BrandColors.white,
+    paddingHorizontal: Spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryChipActive: {
+    borderColor: BrandColors.green,
+    backgroundColor: BrandColors.greenLight,
+  },
+  categoryText: { color: BrandColors.muted, ...Typography.caption },
+  categoryTextActive: { color: BrandColors.greenDark, fontWeight: "700" },
+  feedback: { gap: Spacing.sm },
+  empty: {
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xxl,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: Radius.round,
     backgroundColor: BrandColors.greenLight,
     alignItems: "center",
     justifyContent: "center",
   },
-  productCopy: { flex: 1, marginHorizontal: Spacing.sm },
-  productName: { color: BrandColors.text, ...Typography.label },
-  productMeta: {
+  emptyTitle: { color: BrandColors.text, ...Typography.h3 },
+  muted: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    textAlign: "center",
+  },
+  errorText: {
+    color: BrandColors.danger,
+    ...Typography.caption,
+  },
+  list: { gap: Spacing.sm },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    minHeight: 64,
+    ...Elevation.ambientCard,
+  },
+  pressed: {
+    opacity: Interaction.pressedOpacity,
+    transform: [{ scale: Interaction.pressedScale }],
+  },
+  rowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowCopy: { flex: 1 },
+  rowName: { color: BrandColors.text, ...Typography.label },
+  rowMeta: {
     color: BrandColors.muted,
     ...Typography.caption,
     marginTop: Spacing.xxs,
   },
+  rowPrice: {
+    color: BrandColors.text,
+    ...Typography.h3,
+    flexShrink: 1,
+  },
+  sheet: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  sheetHeaderCopy: { flex: 1 },
+  sheetTitle: { color: BrandColors.text, ...Typography.h3 },
+  sheetMeta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  sheetClose: {
+    width: ControlSize.compact,
+    height: ControlSize.compact,
+    borderRadius: Radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  currentLabel: {
+    color: BrandColors.greenDark,
+    ...Typography.overline,
+  },
   inputLabel: {
     color: BrandColors.muted,
     ...Typography.label,
-    marginTop: Spacing.md,
-    marginBottom: Spacing.xs,
   },
   editorRow: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
   stepButton: {
@@ -331,7 +581,7 @@ const styles = StyleSheet.create({
   },
   inputWrap: {
     flex: 1,
-    minHeight: ControlSize.default,
+    minHeight: ControlSize.large,
     borderRadius: ComponentMetrics.inputRadius,
     borderWidth: 1.5,
     borderColor: BrandColors.line,
@@ -348,31 +598,18 @@ const styles = StyleSheet.create({
   },
   priceInput: {
     flex: 1,
+    minWidth: 0,
     color: BrandColors.text,
-    ...Typography.h3,
+    ...Typography.h2,
     paddingVertical: 0,
+    textAlign: "center",
   },
-  unit: { color: BrandColors.muted, ...Typography.label },
-  errorText: {
-    color: BrandColors.danger,
-    ...Typography.caption,
-    marginTop: Spacing.xs,
-  },
-  saveButton: {
-    minHeight: ControlSize.default,
-    borderRadius: Radius.md,
-    backgroundColor: BrandColors.green,
+  sheetFooter: {
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
     gap: Spacing.xs,
-    marginTop: Spacing.sm,
   },
-  saveButtonDisabled: { backgroundColor: BrandColors.surfaceMuted },
-  saveText: { color: BrandColors.white, ...Typography.label },
-  saveTextDisabled: { color: BrandColors.mutedLight },
-  pressed: {
-    opacity: Interaction.pressedOpacity,
-    transform: [{ scale: Interaction.pressedScale }],
-  },
+  resetButton: { flex: 1 },
+  saveButton: { flex: 1.6 },
 });
+
+// Nota: el empty state con cero productos conserva el flujo anterior de guía.

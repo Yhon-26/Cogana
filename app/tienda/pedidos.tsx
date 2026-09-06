@@ -2,7 +2,14 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, type Href, useFocusEffect } from "expo-router";
 import * as Linking from "expo-linking";
 import { useCallback, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { CommerceButton } from "@/components/commerce-ui";
 import { ModalSurface } from "@/components/modal-surface";
@@ -56,6 +63,7 @@ export default function MyOrdersScreen() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [cancelOrder, setCancelOrder] = useState<OnlineOrder | null>(null);
+  const [detailOrder, setDetailOrder] = useState<OnlineOrder | null>(null);
   const [reason, setReason] = useState("");
   const [isCancelling, setIsCancelling] = useState(false);
 
@@ -223,7 +231,16 @@ export default function MyOrdersScreen() {
         const visibleItems = order.items.slice(0, 3);
         const latestEvents = order.history.slice(-2);
         return (
-          <View key={order.id} style={styles.card}>
+          <Pressable
+            accessibilityLabel={`Ver detalle del pedido ${order.orderNumber}`}
+            accessibilityRole="button"
+            key={order.id}
+            onPress={() => setDetailOrder(order)}
+            style={({ pressed }) => [
+              styles.card,
+              pressed && styles.cardPressed,
+            ]}
+          >
             <View style={styles.top}>
               <View style={styles.orderIdentity}>
                 <View
@@ -279,7 +296,8 @@ export default function MyOrdersScreen() {
               ))}
               {order.items.length > visibleItems.length ? (
                 <Text style={styles.moreItems}>
-                  + {order.items.length - visibleItems.length} productos más
+                  + {order.items.length - visibleItems.length} productos más ·
+                  toca para ver todo
                 </Text>
               ) : null}
             </View>
@@ -435,7 +453,7 @@ export default function MyOrdersScreen() {
                 </Pressable>
               ) : null}
             </View>
-          </View>
+          </Pressable>
         );
       })}
 
@@ -516,6 +534,122 @@ export default function MyOrdersScreen() {
         >
           <Text style={styles.back}>Volver</Text>
         </Pressable>
+      </ModalSurface>
+
+      <ModalSurface
+        animationType="slide"
+        onClose={() => setDetailOrder(null)}
+        placement="bottom"
+        visible={detailOrder !== null}
+      >
+        {detailOrder ? (
+          <>
+            <View style={styles.detailHeader}>
+              <View style={styles.detailHeaderCopy}>
+                <Text maxFontSizeMultiplier={1.3} style={styles.detailTitle}>
+                  {detailOrder.orderNumber}
+                </Text>
+                <Text style={styles.detailDate}>
+                  {new Date(detailOrder.createdAt).toLocaleDateString("es-PE", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </Text>
+              </View>
+              <View
+                style={[
+                  styles.status,
+                  !activeStatuses.has(detailOrder.status) &&
+                    styles.statusNeutral,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.statusText,
+                    !activeStatuses.has(detailOrder.status) &&
+                      styles.statusTextNeutral,
+                  ]}
+                >
+                  {labels[detailOrder.status] ?? detailOrder.status}
+                </Text>
+              </View>
+              <Pressable
+                accessibilityLabel="Cerrar detalle del pedido"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setDetailOrder(null)}
+                style={styles.detailClose}
+              >
+                <MaterialCommunityIcons
+                  name="close"
+                  size={22}
+                  color={BrandColors.muted}
+                />
+              </Pressable>
+            </View>
+
+            <Text style={styles.detailSectionLabel}>
+              PRODUCTOS ({detailOrder.items.length})
+            </Text>
+            <FlatList
+              data={detailOrder.items}
+              keyExtractor={(item) => item.id}
+              renderItem={({ item }) => (
+                <View style={styles.detailItemRow}>
+                  <View style={styles.itemDot} />
+                  <View style={styles.detailItemCopy}>
+                    <Text numberOfLines={2} style={styles.detailItemName}>
+                      {item.productName}
+                    </Text>
+                    <Text style={styles.detailItemQuantity}>
+                      {item.preparedQuantity ?? item.requestedQuantity}{" "}
+                      {item.baseUnit === "gram" ? "g" : "un."}
+                      {item.preparedQuantity !== null &&
+                      item.preparedQuantity !== item.requestedQuantity
+                        ? ` (pediste ${item.requestedQuantity} ${item.baseUnit === "gram" ? "g" : "un."})`
+                        : ""}
+                    </Text>
+                  </View>
+                  <Text style={styles.detailItemAmount}>
+                    S/{" "}
+                    {((item.finalCents ?? item.estimatedCents) / 100).toFixed(
+                      2,
+                    )}
+                  </Text>
+                </View>
+              )}
+              style={styles.detailList}
+            />
+
+            <View style={styles.detailTotalRow}>
+              <View style={styles.fulfillment}>
+                <MaterialCommunityIcons
+                  name={
+                    detailOrder.fulfillmentType === "delivery"
+                      ? "moped-outline"
+                      : "store-marker-outline"
+                  }
+                  size={17}
+                  color={BrandColors.muted}
+                />
+                <Text style={styles.meta}>
+                  {detailOrder.fulfillmentType === "delivery"
+                    ? "Delivery"
+                    : "Recojo"}{" "}
+                  · {detailOrder.paymentMethod.toUpperCase()}
+                </Text>
+              </View>
+              <Text maxFontSizeMultiplier={1.4} style={styles.total}>
+                S/{" "}
+                {(
+                  (detailOrder.finalTotalCents ??
+                    detailOrder.estimatedTotalCents) / 100
+                ).toFixed(2)}
+              </Text>
+            </View>
+          </>
+        ) : null}
       </ModalSurface>
     </OnlineScreen>
   );
@@ -798,6 +932,58 @@ const styles = StyleSheet.create({
   },
   back: { color: BrandColors.muted, textAlign: "center", ...Typography.label },
   disabled: { opacity: Interaction.disabledOpacity },
+  cardPressed: {
+    opacity: Interaction.pressedOpacity,
+    transform: [{ scale: Interaction.pressedScale }],
+  },
+  detailHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  detailHeaderCopy: { flex: 1 },
+  detailTitle: { color: BrandColors.text, ...Typography.h3 },
+  detailDate: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  detailClose: {
+    width: ControlSize.compact,
+    height: ControlSize.compact,
+    borderRadius: Radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  detailSectionLabel: { color: BrandColors.muted, ...Typography.overline },
+  detailList: { maxHeight: 340 },
+  detailItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.line,
+    paddingVertical: Spacing.xs,
+  },
+  detailItemCopy: { flex: 1 },
+  detailItemName: { color: BrandColors.text, ...Typography.body },
+  detailItemQuantity: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: 2,
+  },
+  detailItemAmount: {
+    color: BrandColors.greenDark,
+    ...Typography.label,
+  },
+  detailTotalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.line,
+    paddingTop: Spacing.sm,
+  },
   pressed: {
     opacity: Interaction.pressedOpacity,
     transform: [{ scale: Interaction.pressedScale }],

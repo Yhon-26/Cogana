@@ -1,16 +1,40 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, type Href, useLocalSearchParams } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef } from "react";
+import { Animated, StyleSheet, Text, View } from "react-native";
 
 import { CommerceButton, TrustItem } from "@/components/commerce-ui";
 import { OnlineScreen } from "@/components/online-shell";
-import { BrandColors, Radius, Spacing, Typography } from "@/constants/theme";
+import {
+  BrandColors,
+  Elevation,
+  Radius,
+  Spacing,
+  Typography,
+} from "@/constants/theme";
+import { useAppPreferences } from "@/context/app-preferences-context";
 
 export default function OrderConfirmationScreen() {
   const { numero, total } = useLocalSearchParams<{
     numero: string;
     total: string;
   }>();
+  const { preferences } = useAppPreferences();
+  const checkScale = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (preferences.reduceMotion) {
+      checkScale.setValue(1);
+      return;
+    }
+    Animated.spring(checkScale, {
+      bounciness: 9,
+      speed: 14,
+      toValue: 1,
+      useNativeDriver: true,
+    }).start();
+  }, [checkScale, preferences.reduceMotion]);
+
   return (
     <OnlineScreen
       title="Pedido recibido"
@@ -22,15 +46,19 @@ export default function OrderConfirmationScreen() {
           <View style={[styles.confetti, styles.confettiGreen]} />
           <View style={[styles.confetti, styles.confettiSand]} />
         </View>
-        <View style={styles.icon}>
+        <Animated.View
+          style={[styles.icon, { transform: [{ scale: checkScale }] }]}
+        >
           <MaterialCommunityIcons
             name="check-bold"
             size={40}
             color={BrandColors.white}
           />
-        </View>
+        </Animated.View>
         <Text style={styles.eyebrow}>¡LISTO!</Text>
-        <Text style={styles.title}>Tu pedido ya está en marcha</Text>
+        <Text maxFontSizeMultiplier={1.3} style={styles.title}>
+          Tu pedido ya está en marcha
+        </Text>
         <Text style={styles.text}>
           Te avisaremos en cada avance. Si compraste productos por peso, verás
           el total final antes de completar la entrega.
@@ -38,11 +66,13 @@ export default function OrderConfirmationScreen() {
         <View style={styles.receipt}>
           <View>
             <Text style={styles.receiptLabel}>NÚMERO DE PEDIDO</Text>
-            <Text style={styles.number}>{numero}</Text>
+            <Text maxFontSizeMultiplier={1.4} style={styles.number}>
+              {numero}
+            </Text>
           </View>
           <View style={styles.receiptAmount}>
             <Text style={styles.receiptLabel}>ESTIMADO</Text>
-            <Text style={styles.total}>
+            <Text maxFontSizeMultiplier={1.4} style={styles.total}>
               S/ {(Number(total || 0) / 100).toFixed(2)}
             </Text>
           </View>
@@ -81,6 +111,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.sm,
     overflow: "hidden",
+    ...Elevation.ambientCard,
   },
   confettiRow: {
     position: "absolute",
@@ -132,7 +163,7 @@ const styles = StyleSheet.create({
   receiptLabel: { color: BrandColors.muted, ...Typography.overline },
   number: {
     color: BrandColors.greenDark,
-    ...Typography.h3,
+    ...Typography.h2,
     marginTop: Spacing.xxs,
   },
   receiptAmount: { alignItems: "flex-end" },
@@ -142,6 +173,10 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     backgroundColor: BrandColors.greenLight,
     padding: Spacing.md,
-    gap: Spacing.xs,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    columnGap: Spacing.lg,
+    rowGap: Spacing.xs,
   },
 });

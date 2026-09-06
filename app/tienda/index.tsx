@@ -766,9 +766,13 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   trust: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    columnGap: Spacing.md,
+    rowGap: Spacing.xs,
     borderTopWidth: 1,
     borderTopColor: BrandColors.line,
     paddingTop: Spacing.md,
-    gap: Spacing.xs,
   },
 });

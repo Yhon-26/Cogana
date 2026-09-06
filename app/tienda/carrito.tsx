@@ -6,7 +6,6 @@ import {
   CommerceButton,
   ProductVisual,
   QuantityStepper,
-  TrustItem,
 } from "@/components/commerce-ui";
 import { OnlineScreen } from "@/components/online-shell";
 import {
@@ -141,7 +140,9 @@ export default function CartScreen() {
               color={BrandColors.green}
             />
           </View>
-          <Text style={styles.emptyTitle}>Tu canasta está esperando</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.emptyTitle}>
+            Tu canasta está esperando
+          </Text>
           <Text style={styles.emptyText}>
             Agrega tus productos de siempre y vuelve cuando quieras: guardaremos
             tu carrito.
@@ -166,14 +167,6 @@ export default function CartScreen() {
           </Text>
         </View>
       )}
-
-      {items.length ? (
-        <View style={styles.trust}>
-          <TrustItem icon="content-save-outline">Carrito guardado</TrustItem>
-          <TrustItem icon="shield-check-outline">Compra protegida</TrustItem>
-          <TrustItem icon="scale-balance">Peso verificado</TrustItem>
-        </View>
-      ) : null}
     </OnlineScreen>
   );
 }
@@ -291,12 +284,6 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   infoText: { flex: 1, color: BrandColors.greenDark, ...Typography.caption },
-  trust: {
-    borderTopWidth: 1,
-    borderTopColor: BrandColors.line,
-    paddingTop: Spacing.md,
-    gap: Spacing.xs,
-  },
   footer: { flexDirection: "row", alignItems: "center", gap: Spacing.md },
   footerLabel: { color: BrandColors.muted, ...Typography.caption },
   footerTotal: { color: BrandColors.text, ...Typography.h2 },

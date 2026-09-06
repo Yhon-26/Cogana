@@ -1,4 +1,4 @@
-import { createContext, type PropsWithChildren, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, type PropsWithChildren, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 import type { LocalUserRecord } from '@/database/models';
 import { useSupabaseAuth } from '@/context/supabase-auth-context';
@@ -62,7 +62,7 @@ export function LocalOperatorProvider({ children }: PropsWithChildren) {
   const [error, setError] = useState<Error | null>(null);
   const [unlockError, setUnlockError] = useState<UnlockError>(null);
 
-  const reload = async () => {
+  const reload = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
@@ -94,39 +94,43 @@ export function LocalOperatorProvider({ children }: PropsWithChildren) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [activateOperator, database, selectedUser?.id]);
 
   useEffect(() => {
     void reload();
   }, [database]);
 
-  const requestSelectUser = (userId: string) => {
-    setUnlockError(null);
-    if (selectedUser?.id === userId) return;
-    const user = users.find((candidate) => candidate.id === userId);
-    if (!user) return;
-    setPendingUser(user);
-  };
+  const requestSelectUser = useCallback(
+    (userId: string) => {
+      setUnlockError(null);
+      if (selectedUser?.id === userId) return;
+      const user = users.find((candidate) => candidate.id === userId);
+      if (!user) return;
+      setPendingUser(user);
+    },
+    [selectedUser?.id, users]
+  );
 
-  const lockSelectedUser = () => {
+  const lockSelectedUser = useCallback(() => {
     if (!selectedUser) return;
     setUnlockError(null);
     setPendingUser(selectedUser);
     setSelectedUser(null);
-  };
+  }, [selectedUser]);
 
-  const cancelPending = () => {
+  const cancelPending = useCallback(() => {
     setPendingUser(null);
     setUnlockError(null);
-  };
+  }, []);
 
-  const refreshUsers = async () => {
+  const refreshUsers = useCallback(async () => {
     const localUsers = await listActiveLocalUsers(database, DEFAULT_STORE_ID);
     setUsers(localUsers);
     return localUsers;
-  };
+  }, [database]);
 
-  const verifyPendingPin = async (pin: string): Promise<boolean> => {
+  const verifyPendingPin = useCallback(
+    async (pin: string): Promise<boolean> => {
     if (!pendingUser) return false;
     if (!isValidPinFormat(pin)) {
       setUnlockError({ message: 'Ingresa un PIN de 4 a 8 dígitos.', code: 'invalid_pin' });
@@ -227,9 +231,12 @@ export function LocalOperatorProvider({ children }: PropsWithChildren) {
     } finally {
       setIsUnlocking(false);
     }
-  };
+    },
+    [activateOperator, database, pendingUser, refreshUsers]
+  );
 
-  const createPendingPin = async (pin: string): Promise<boolean> => {
+  const createPendingPin = useCallback(
+    async (pin: string): Promise<boolean> => {
     if (!pendingUser) return false;
     if (!isValidNewPinFormat(pin)) {
       setUnlockError({ message: 'Ingresa un PIN de 6 a 8 dígitos.', code: 'invalid_pin' });
@@ -277,7 +284,9 @@ export function LocalOperatorProvider({ children }: PropsWithChildren) {
     } finally {
       setIsUnlocking(false);
     }
-  };
+    },
+    [activateOperator, database, pendingUser, refreshUsers]
+  );
 
   const selectedUserId = selectedUser?.id ?? '';
 
@@ -299,7 +308,7 @@ export function LocalOperatorProvider({ children }: PropsWithChildren) {
       verifyPendingPin,
       createPendingPin,
     }),
-    [users, selectedUser, selectedUserId, deviceId, pendingUser, isLoading, error, unlockError, isUnlocking]
+    [users, selectedUser, selectedUserId, deviceId, pendingUser, isLoading, error, unlockError, isUnlocking, cancelPending, createPendingPin, lockSelectedUser, reload, requestSelectUser, verifyPendingPin]
   );
 
   return (

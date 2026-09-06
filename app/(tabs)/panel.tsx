@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, type Href, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import {
   AdminScreen,
@@ -11,7 +11,6 @@ import {
   sharedStyles,
 } from "@/components/admin-ui";
 import { ModalSurface } from "@/components/modal-surface";
-import { OperatorSelector } from "@/components/operator-selector";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   DEFAULT_SELLER_MODULES,
@@ -213,6 +212,17 @@ const paymentLabels: Record<PaymentMethod, string> = {
   plin: "Plin",
   card: "Tarjeta",
 };
+
+// Favoritos del panel: una fila horizontal, como en Shopify o Loyverse.
+// El resto de módulos vive en la pestaña "Más".
+const favoriteRoutes: Route[] = [
+  "/inventario",
+  "/pedidos",
+  "/precios",
+  "/historial-ventas",
+  "/reportes",
+  "/scanner",
+];
 
 export default function InternalDashboardScreen() {
   const { isMedium } = useAdaptiveLayout();
@@ -934,55 +944,74 @@ export default function InternalDashboardScreen() {
       </ModalSurface>
 
       <SectionTitle>Accesos rápidos</SectionTitle>
-      <View style={styles.actionGrid}>
-        {visibleActions.map((action) => (
-          <Pressable
-            accessibilityLabel={action.title}
-            accessibilityRole="button"
-            disabled={!action.route}
-            key={action.title}
-            onPress={() => action.route && router.push(action.route as Href)}
-            style={({ pressed }) => [
-              sharedStyles.card,
-              styles.actionCard,
-              isMedium && styles.actionCardMedium,
-              !action.route && styles.actionDisabled,
-              pressed && action.route && styles.pressed,
-            ]}
-          >
-            <View
-              style={[
-                styles.actionIcon,
-                action.accent === "gold" && styles.actionIconGold,
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.shortcutRow}
+        showsHorizontalScrollIndicator={false}
+      >
+        {favoriteRoutes
+          .map((route) =>
+            visibleActions.find((action) => action.route === route),
+          )
+          .filter((action): action is (typeof actions)[number] =>
+            Boolean(action),
+          )
+          .map((action) => (
+            <Pressable
+              accessibilityLabel={action.title}
+              accessibilityRole="button"
+              key={action.title}
+              onPress={() => router.push(action.route as Href)}
+              style={({ pressed }) => [
+                sharedStyles.card,
+                styles.shortcutChip,
+                pressed && styles.pressed,
               ]}
             >
-              <MaterialCommunityIcons
-                name={action.icon}
-                size={25}
-                color={
-                  action.accent === "gold"
-                    ? BrandColors.warning
-                    : BrandColors.greenDark
-                }
-              />
-            </View>
-            <Text style={styles.actionTitle}>{action.title}</Text>
-            {action.route ? (
-              <MaterialCommunityIcons
-                name="chevron-right"
-                size={17}
-                color={BrandColors.mutedLight}
-                style={styles.arrow}
-              />
-            ) : (
-              <Pill label="Próximamente" tone="neutral" />
-            )}
-          </Pressable>
-        ))}
-      </View>
-
-      <SectionTitle>Usuario de la operación</SectionTitle>
-      <OperatorSelector />
+              <View
+                style={[
+                  styles.shortcutIcon,
+                  action.accent === "gold" && styles.shortcutIconGold,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={action.icon}
+                  size={22}
+                  color={
+                    action.accent === "gold"
+                      ? BrandColors.warning
+                      : BrandColors.greenDark
+                  }
+                />
+              </View>
+              <Text numberOfLines={2} style={styles.shortcutTitle}>
+                {action.title}
+              </Text>
+            </Pressable>
+          ))}
+        <Pressable
+          accessibilityLabel="Ver todos los módulos en Más"
+          accessibilityRole="button"
+          onPress={() => router.push("/mas" as Href)}
+          style={({ pressed }) => [
+            sharedStyles.card,
+            styles.shortcutChip,
+            styles.shortcutAll,
+            pressed && styles.pressed,
+          ]}
+        >
+          <View style={styles.shortcutIcon}>
+            <MaterialCommunityIcons
+              name="dots-grid"
+              size={22}
+              color={BrandColors.greenDark}
+            />
+          </View>
+          <Text numberOfLines={2} style={styles.shortcutTitle}>
+            Todos
+          </Text>
+        </Pressable>
+      </ScrollView>
     </AdminScreen>
   );
 }
@@ -1268,34 +1297,38 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     textAlign: "center",
   },
-  actionGrid: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
-  actionCard: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 150,
-    minWidth: 140,
-    minHeight: 92,
-    padding: Spacing.sm,
+  shortcutRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+    paddingRight: Spacing.lg,
   },
-  actionCardMedium: { maxWidth: 200 },
-  actionDisabled: { opacity: Interaction.disabledOpacity },
-  actionIcon: {
-    width: ControlSize.default,
-    height: ControlSize.default,
-    borderRadius: Radius.md,
+  shortcutChip: {
+    width: 108,
+    minHeight: 96,
+    padding: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  shortcutIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
     backgroundColor: BrandColors.greenLight,
     alignItems: "center",
     justifyContent: "center",
   },
-  actionIconGold: { backgroundColor: BrandColors.goldLight },
-  actionTitle: {
+  shortcutIconGold: { backgroundColor: BrandColors.goldLight },
+  shortcutTitle: {
     color: BrandColors.text,
-    ...Typography.label,
-    marginTop: Spacing.xs,
+    ...Typography.caption,
+    fontWeight: "700",
     flexShrink: 1,
-    paddingRight: Spacing.md,
   },
-  arrow: { position: "absolute", right: Spacing.xs, bottom: Spacing.xs },
+  shortcutAll: {
+    borderWidth: 1,
+    borderColor: BrandColors.green,
+    borderStyle: "dashed",
+    backgroundColor: BrandColors.greenLight,
+  },
   pressed: { opacity: Interaction.pressedOpacity },
   voidButton: {
     flexDirection: "row",

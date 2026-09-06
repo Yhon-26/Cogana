@@ -11,7 +11,6 @@ import {
 
 import {
   AdminScreen,
-  Pill,
   PrimaryButton,
   SectionTitle,
   sharedStyles,
@@ -19,7 +18,6 @@ import {
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   BrandColors,
-  ComponentMetrics,
   ControlSize,
   Interaction,
   Radius,
@@ -220,11 +218,6 @@ export default function InventoryScreen() {
         ) : (
           filteredProducts.map((product) => {
             const low = product.stockQuantity <= product.minimumStockQuantity;
-            const ratio = Math.min(
-              1,
-              product.stockQuantity /
-                Math.max(product.minimumStockQuantity * 3, 1),
-            );
             return (
               <Pressable
                 accessibilityLabel={`Abrir ${product.name}, existencia ${formatStock(product, product.stockQuantity)}`}
@@ -237,61 +230,40 @@ export default function InventoryScreen() {
                   pressed && styles.pressed,
                 ]}
               >
-                <View style={styles.productTop}>
-                  <View style={[styles.iconWrap, low && styles.iconWrapLow]}>
-                    <MaterialCommunityIcons
-                      name="barley"
-                      size={23}
-                      color={low ? BrandColors.warning : BrandColors.green}
-                    />
-                  </View>
-                  <View style={styles.productCopy}>
-                    <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productMeta}>
-                      {product.sku} · {product.category}
-                    </Text>
-                  </View>
-                  <Pill
-                    label={low ? "Stock bajo" : "Disponible"}
-                    tone={low ? "gold" : "green"}
-                  />
-                </View>
-                <View style={styles.stockRow}>
-                  <View>
-                    <Text style={styles.stockLabel}>Existencia</Text>
-                    <Text style={styles.stockValue}>
-                      {formatStock(product, product.stockQuantity)}
-                    </Text>
-                  </View>
-                  <View style={styles.priceCopy}>
-                    <Text style={styles.stockLabel}>Precio actual</Text>
-                    <Text style={styles.priceValue}>
-                      {formatSoles(product.priceCents)} /{" "}
-                      {formatPricingUnit(product)}
-                    </Text>
-                  </View>
-                </View>
-                <View style={styles.progressTrack}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      { width: `${Math.max(ratio * 100, 3)}%` },
-                      low && styles.progressFillLow,
-                    ]}
-                  />
-                </View>
-                <Text style={styles.minimum}>
-                  Mínimo recomendado:{" "}
-                  {formatStock(product, product.minimumStockQuantity)}
-                </Text>
-                <View style={styles.openRow}>
-                  <Text style={styles.openText}>Ver detalle y movimientos</Text>
+                <View
+                  style={[styles.iconWrap, low && styles.iconWrapLow]}
+                >
                   <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={18}
-                    color={BrandColors.green}
+                    name="barley"
+                    size={21}
+                    color={low ? BrandColors.warning : BrandColors.green}
                   />
                 </View>
+                <View style={styles.productCopy}>
+                  <Text maxFontSizeMultiplier={1.3} numberOfLines={1} style={styles.productName}>
+                    {product.name}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.productMeta}>
+                    {product.sku} · {product.category}
+                  </Text>
+                </View>
+                <View style={styles.stockCopy}>
+                  <Text
+                    maxFontSizeMultiplier={1.3}
+                    style={[styles.stockValue, low && styles.stockValueLow]}
+                  >
+                    {formatStock(product, product.stockQuantity)}
+                  </Text>
+                  <Text numberOfLines={1} style={styles.priceValue}>
+                    {formatSoles(product.priceCents)} /{" "}
+                    {formatPricingUnit(product)}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={19}
+                  color={BrandColors.mutedLight}
+                />
               </Pressable>
             );
           })
@@ -345,9 +317,12 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
+    minWidth: 0,
     color: BrandColors.text,
     ...Typography.body,
-    paddingVertical: 0,
+    paddingVertical: 13,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
   clearButton: {
     width: ControlSize.default,
@@ -376,69 +351,43 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     textAlign: "center",
   },
-  productCard: { padding: Spacing.md },
-  productTop: { flexDirection: "row", alignItems: "center" },
+  productCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    padding: Spacing.sm,
+  },
   iconWrap: {
-    width: ControlSize.default,
-    height: ControlSize.default,
-    borderRadius: ComponentMetrics.inputRadius,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.sm,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: BrandColors.greenLight,
   },
   iconWrapLow: { backgroundColor: BrandColors.goldLight },
-  productCopy: { flex: 1, marginHorizontal: Spacing.sm },
+  productCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
   productName: { color: BrandColors.text, ...Typography.label },
   productMeta: {
     color: BrandColors.muted,
     ...Typography.caption,
-    marginTop: Spacing.xxs,
+    marginTop: 2,
   },
-  stockRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: Spacing.md,
-  },
-  priceCopy: { alignItems: "flex-end" },
-  stockLabel: { color: BrandColors.muted, ...Typography.caption },
+  stockCopy: { alignItems: "flex-end", flexShrink: 0 },
   stockValue: {
     color: BrandColors.text,
-    ...Typography.h3,
-    marginTop: Spacing.xxs,
-  },
-  priceValue: {
-    color: BrandColors.greenDark,
     ...Typography.label,
-    marginTop: Spacing.xxs,
+    fontWeight: "800",
   },
-  progressTrack: {
-    height: Spacing.xs,
-    borderRadius: Radius.round,
-    backgroundColor: BrandColors.surfaceMuted,
-    overflow: "hidden",
-    marginTop: Spacing.sm,
-  },
-  progressFill: {
-    height: Spacing.xs,
-    borderRadius: Radius.round,
-    backgroundColor: BrandColors.green,
-  },
-  progressFillLow: { backgroundColor: BrandColors.gold },
-  minimum: {
+  stockValueLow: { color: BrandColors.warning },
+  priceValue: {
     color: BrandColors.muted,
     ...Typography.caption,
-    marginTop: Spacing.xs,
+    marginTop: 2,
   },
-  openRow: {
-    borderTopWidth: 1,
-    borderTopColor: BrandColors.line,
-    marginTop: Spacing.sm,
-    paddingTop: Spacing.sm,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  openText: { color: BrandColors.greenDark, ...Typography.label },
   pressed: {
     opacity: Interaction.pressedOpacity,
     transform: [{ scale: Interaction.pressedScale }],

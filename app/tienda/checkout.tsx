@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import type { StyleProp, ViewStyle } from "react-native";
 
 import { CommerceButton, TrustItem } from "@/components/commerce-ui";
 import { OnlineScreen } from "@/components/online-shell";
@@ -215,7 +216,7 @@ export default function CheckoutScreen() {
         <View style={styles.footer}>
           <View>
             <Text style={styles.footerLabel}>Total estimado</Text>
-            <Text style={styles.footerTotal}>
+            <Text maxFontSizeMultiplier={1.4} style={styles.footerTotal}>
               S/ {(total / 100).toFixed(2)}
             </Text>
           </View>
@@ -326,6 +327,7 @@ export default function CheckoutScreen() {
               />
               <Field
                 label="Referencia para encontrarla"
+                multiline
                 value={instructions}
                 onChangeText={setInstructions}
               />
@@ -435,6 +437,7 @@ export default function CheckoutScreen() {
               key={method}
               label={paymentLabel}
               onPress={() => setPaymentMethod(method)}
+              style={styles.choiceGridItem}
             />
           ))}
         </View>
@@ -461,6 +464,7 @@ export default function CheckoutScreen() {
         ) : null}
         <Field
           label="Notas para el pedido"
+          multiline
           value={notes}
           onChangeText={setNotes}
         />
@@ -470,7 +474,9 @@ export default function CheckoutScreen() {
         <View style={styles.summaryHeader}>
           <View>
             <Text style={styles.summaryEyebrow}>RESUMEN</Text>
-            <Text style={styles.summaryTitle}>{items.length} productos</Text>
+            <Text maxFontSizeMultiplier={1.3} style={styles.summaryTitle}>
+            {items.length} productos
+          </Text>
           </View>
           <MaterialCommunityIcons
             name="receipt-text-outline"
@@ -553,12 +559,14 @@ function Choice({
   icon,
   label,
   onPress,
+  style,
 }: {
   active: boolean;
   description?: string;
   icon?: keyof typeof MaterialCommunityIcons.glyphMap;
   label: string;
   onPress: () => void;
+  style?: StyleProp<ViewStyle>;
 }) {
   return (
     <Pressable
@@ -568,6 +576,7 @@ function Choice({
       onPress={onPress}
       style={({ pressed }) => [
         styles.choice,
+        style,
         active && styles.choiceActive,
         pressed && styles.pressed,
       ]}
@@ -633,6 +642,7 @@ function DeliveryZoneChoice({
 }
 function Field({
   label,
+  multiline = false,
   ...props
 }: React.ComponentProps<typeof TextInput> & { label: string }) {
   return (
@@ -640,9 +650,15 @@ function Field({
       <Text style={styles.label}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
+        maxFontSizeMultiplier={1.5}
+        multiline={multiline}
         {...props}
         placeholderTextColor={BrandColors.muted}
-        style={[styles.input, props.editable === false && styles.inputDisabled]}
+        style={[
+          styles.input,
+          multiline && styles.inputMultiline,
+          props.editable === false && styles.inputDisabled,
+        ]}
       />
     </View>
   );
@@ -883,7 +899,15 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.lineStrong,
     color: BrandColors.text,
     paddingHorizontal: Spacing.sm,
+    paddingVertical: 13,
+    includeFontPadding: false,
+    textAlignVertical: "center",
     ...Typography.body,
+  },
+  inputMultiline: {
+    minHeight: 84,
+    paddingVertical: Spacing.sm,
+    textAlignVertical: "top",
   },
   inputDisabled: {
     backgroundColor: BrandColors.surfaceMuted,
@@ -912,7 +936,13 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     marginTop: Spacing.xxs,
   },
-  paymentGrid: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs },
+  paymentGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.xs,
+    rowGap: Spacing.xs,
+  },
+  choiceGridItem: { flexBasis: "47%", flexGrow: 0 },
   paymentNotice: {
     flexDirection: "row",
     alignItems: "center",
@@ -967,7 +997,14 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   readyText: { flex: 1, color: BrandColors.greenDark, ...Typography.caption },
-  trust: { gap: Spacing.xs, paddingHorizontal: Spacing.xxs },
+  trust: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    columnGap: Spacing.lg,
+    rowGap: Spacing.xs,
+    paddingHorizontal: Spacing.xxs,
+  },
   footer: { flexDirection: "row", alignItems: "center", gap: Spacing.md },
   footerLabel: { color: BrandColors.muted, ...Typography.caption },
   footerTotal: { color: BrandColors.text, ...Typography.h2 },

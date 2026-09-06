@@ -84,7 +84,7 @@ export function OnlineScreen({
         </View>
       </View>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior="padding"
         style={[styles.main, showRail && styles.mainExpanded]}
       >
         {showRail ? (

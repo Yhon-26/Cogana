@@ -9,10 +9,10 @@ import {
   SectionTitle,
   sharedStyles,
 } from "@/components/admin-ui";
-import { OperatorSelector } from "@/components/operator-selector";
 import {
   BrandColors,
   ControlSize,
+  Elevation,
   Interaction,
   Radius,
   Spacing,
@@ -91,6 +91,10 @@ function formatOperationType(value: string) {
   return operationTypeLabels[value] ?? "Operación pendiente de confirmar";
 }
 
+function formatDate(value: string | null | undefined) {
+  return value ? new Date(value).toLocaleString("es-PE") : "Sin registro";
+}
+
 export default function SyncDiagnosticsScreen() {
   const database = useLocalDatabase();
   const { selectedUser, deviceId } = useLocalOperator();
@@ -136,6 +140,17 @@ export default function SyncDiagnosticsScreen() {
   };
 
   const errors = operations.filter((operation) => operation.status === "error");
+  const deviceRows: Array<{ icon: string; label: string; value: string }> = [
+    {
+      icon: "cloud-check-outline",
+      label: "Sesión central",
+      value: authStateLabels[authState],
+    },
+    { icon: "clock-outline", label: "Último éxito", value: formatDate(state?.lastSuccessAt) },
+    { icon: "upload-outline", label: "Último push", value: formatDate(state?.lastPushAt) },
+    { icon: "download-outline", label: "Último pull", value: formatDate(state?.lastPullAt) },
+  ];
+
   return (
     <AdminScreen
       title="Sincronización"
@@ -156,7 +171,7 @@ export default function SyncDiagnosticsScreen() {
         >
           <MaterialCommunityIcons
             name="sync"
-            size={Typography.h3.fontSize}
+            size={20}
             color={BrandColors.white}
           />
           <Text style={styles.syncText}>
@@ -165,7 +180,22 @@ export default function SyncDiagnosticsScreen() {
         </Pressable>
       }
     >
-      <OperatorSelector />
+      {!selectedUser ? (
+        <View style={[sharedStyles.card, styles.operatorNotice]}>
+          <MaterialCommunityIcons
+            name="account-key-outline"
+            size={22}
+            color={BrandColors.warning}
+          />
+          <View style={styles.operatorNoticeCopy}>
+            <Text style={styles.operatorNoticeTitle}>Falta tu operador</Text>
+            <Text style={styles.operatorNoticeText}>
+              Activa tu perfil con PIN en la pestaña Más para sincronizar.
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.metrics}>
         <Metric label="Pendientes" value={String(operations.length)} />
         <Metric
@@ -175,20 +205,26 @@ export default function SyncDiagnosticsScreen() {
         />
         <Metric label="Cursor" value={String(state?.lastPullCursor ?? 0)} />
       </View>
-      <View style={[sharedStyles.card, styles.card]}>
+
+      <View style={[sharedStyles.card, styles.card, styles.rowShadow]}>
         <Text style={styles.title}>Estado del dispositivo</Text>
-        <Text style={styles.meta}>
-          Sesión central: {authStateLabels[authState]}
-        </Text>
-        <Text style={styles.meta}>
-          Último éxito: {formatDate(state?.lastSuccessAt)}
-        </Text>
-        <Text style={styles.meta}>
-          Último push: {formatDate(state?.lastPushAt)}
-        </Text>
-        <Text style={styles.meta}>
-          Último pull: {formatDate(state?.lastPullAt)}
-        </Text>
+        {deviceRows.map((row) => (
+          <View key={row.label} style={styles.summaryRow}>
+            <MaterialCommunityIcons
+              name={row.icon as keyof typeof MaterialCommunityIcons.glyphMap}
+              size={16}
+              color={BrandColors.muted}
+            />
+            <Text style={styles.summaryLabel}>{row.label}</Text>
+            <Text
+              maxFontSizeMultiplier={1.3}
+              numberOfLines={1}
+              style={styles.summaryValue}
+            >
+              {row.value}
+            </Text>
+          </View>
+        ))}
         {state?.lastError ? (
           <Text
             accessibilityLiveRegion="assertive"
@@ -199,11 +235,12 @@ export default function SyncDiagnosticsScreen() {
           </Text>
         ) : null}
       </View>
+
       {operations.length ? (
         <View style={[sharedStyles.card, styles.warning]}>
           <MaterialCommunityIcons
             name="alert-outline"
-            size={Typography.h2.fontSize}
+            size={22}
             color={BrandColors.warning}
           />
           <Text style={styles.warningText}>
@@ -212,6 +249,7 @@ export default function SyncDiagnosticsScreen() {
           </Text>
         </View>
       ) : null}
+
       <SectionTitle
         action={
           <Pill
@@ -222,61 +260,80 @@ export default function SyncDiagnosticsScreen() {
       >
         Cola local
       </SectionTitle>
-      {operations.map((operation) => (
-        <View key={operation.id} style={[sharedStyles.card, styles.operation]}>
-          <View style={styles.operationTop}>
-            <View style={styles.fill}>
-              <Text style={styles.title}>
-                {formatOperationType(operation.operationType)}
-              </Text>
-              <Text style={styles.meta}>
-                {new Date(operation.createdAt).toLocaleString("es-PE")} ·
-                intento {operation.attempts}
-              </Text>
+      {operations.length ? (
+        <View style={styles.list}>
+          {operations.map((operation) => (
+            <View
+              key={operation.id}
+              style={[sharedStyles.card, styles.operation, styles.rowShadow]}
+            >
+              <View style={styles.operationTop}>
+                <View style={styles.fill}>
+                  <Text
+                    maxFontSizeMultiplier={1.3}
+                    style={styles.title}
+                  >
+                    {formatOperationType(operation.operationType)}
+                  </Text>
+                  <Text style={styles.meta}>
+                    {new Date(operation.createdAt).toLocaleString("es-PE")} ·
+                    intento {operation.attempts}
+                  </Text>
+                </View>
+                <Pill
+                  label={syncStatusLabels[operation.status]}
+                  tone={operation.status === "error" ? "danger" : "neutral"}
+                />
+              </View>
+              {operation.lastError ? (
+                <Text
+                  accessibilityLiveRegion="assertive"
+                  accessibilityRole="alert"
+                  style={styles.error}
+                >
+                  {operation.lastError}
+                </Text>
+              ) : null}
+              {operation.status === "error" ? (
+                <Pressable
+                  accessibilityLabel={`Reintentar ${operation.operationType}`}
+                  accessibilityRole="button"
+                  onPress={() => void retry(operation.id)}
+                  style={({ pressed }) => [
+                    styles.retry,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <MaterialCommunityIcons
+                    name="refresh"
+                    size={17}
+                    color={BrandColors.danger}
+                  />
+                  <Text style={styles.retryText}>Marcar para reintento</Text>
+                </Pressable>
+              ) : null}
             </View>
-            <Pill
-              label={syncStatusLabels[operation.status]}
-              tone={operation.status === "error" ? "danger" : "neutral"}
+          ))}
+        </View>
+      ) : (
+        <View style={[sharedStyles.card, styles.empty, styles.rowShadow]}>
+          <View style={styles.emptyIcon}>
+            <MaterialCommunityIcons
+              name="check-circle-outline"
+              size={28}
+              color={BrandColors.green}
             />
           </View>
-          {operation.lastError ? (
-            <Text
-              accessibilityLiveRegion="assertive"
-              accessibilityRole="alert"
-              style={styles.error}
-            >
-              {operation.lastError}
-            </Text>
-          ) : null}
-          {operation.status === "error" ? (
-            <Pressable
-              accessibilityLabel={`Reintentar ${operation.operationType}`}
-              accessibilityRole="button"
-              onPress={() => void retry(operation.id)}
-              style={styles.retry}
-            >
-              <Text style={styles.retryText}>Marcar para reintento</Text>
-            </Pressable>
-          ) : null}
+          <Text maxFontSizeMultiplier={1.3} style={styles.title}>
+            No hay operaciones pendientes
+          </Text>
+          <Text style={styles.meta}>Todo quedó confirmado en la base central.</Text>
         </View>
-      ))}
-      {!operations.length ? (
-        <View style={[sharedStyles.card, styles.empty]}>
-          <MaterialCommunityIcons
-            name="check-circle-outline"
-            size={Spacing.xxl}
-            color={BrandColors.green}
-          />
-          <Text style={styles.title}>No hay operaciones pendientes</Text>
-        </View>
-      ) : null}
+      )}
     </AdminScreen>
   );
 }
 
-function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString("es-PE") : "Sin registro";
-}
 function Metric({
   label,
   value,
@@ -288,11 +345,19 @@ function Metric({
 }) {
   return (
     <View style={styles.metric}>
-      <Text style={[styles.metricValue, danger && styles.error]}>{value}</Text>
+      <Text
+        maxFontSizeMultiplier={1.4}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        style={[styles.metricValue, danger && styles.error]}
+      >
+        {value}
+      </Text>
       <Text style={styles.meta}>{label}</Text>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   sync: {
     minHeight: ControlSize.default,
@@ -306,6 +371,18 @@ const styles = StyleSheet.create({
   },
   syncText: { color: BrandColors.white, ...Typography.label },
   disabled: { opacity: Interaction.disabledOpacity },
+  operatorNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  operatorNoticeCopy: { flex: 1 },
+  operatorNoticeTitle: { color: BrandColors.text, ...Typography.label },
+  operatorNoticeText: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
   metrics: { flexDirection: "row", gap: Spacing.xs },
   metric: {
     flex: 1,
@@ -314,11 +391,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BrandColors.line,
     padding: Spacing.sm,
+    ...Elevation.ambientCard,
   },
   metricValue: { color: BrandColors.text, ...Typography.h3 },
   card: { gap: Spacing.xs },
+  rowShadow: { ...Elevation.ambientCard },
   title: { color: BrandColors.text, ...Typography.label },
   meta: { color: BrandColors.muted, ...Typography.caption },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  summaryLabel: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    flexShrink: 0,
+  },
+  summaryValue: {
+    flex: 1,
+    color: BrandColors.text,
+    ...Typography.caption,
+    textAlign: "right",
+  },
   error: { color: BrandColors.danger, ...Typography.caption },
   warning: {
     flexDirection: "row",
@@ -333,6 +428,7 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontWeight: "700",
   },
+  list: { gap: Spacing.sm },
   operation: { gap: Spacing.xs },
   operationTop: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
   fill: { flex: 1 },
@@ -340,10 +436,24 @@ const styles = StyleSheet.create({
     minHeight: ControlSize.default,
     borderRadius: Radius.md,
     backgroundColor: BrandColors.dangerLight,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: Spacing.xs,
     paddingHorizontal: Spacing.md,
   },
   retryText: { color: BrandColors.danger, ...Typography.label },
-  empty: { alignItems: "center", gap: Spacing.xs },
+  empty: { alignItems: "center", gap: Spacing.xs, paddingVertical: Spacing.xl },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pressed: {
+    opacity: Interaction.pressedOpacity,
+    transform: [{ scale: Interaction.pressedScale }],
+  },
 });

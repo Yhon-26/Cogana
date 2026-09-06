@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -49,6 +49,7 @@ import { confirmSale } from "@/database/repositories/sales-repository";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { useAdaptiveLayout } from "@/hooks/use-adaptive-layout";
 import { useCashSession } from "@/hooks/use-cash-session";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLocalPresentations } from "@/hooks/use-local-presentations";
 import { useLocalProducts } from "@/hooks/use-local-products";
 import { formatQuantity, formatPricingUnit as priceLabel } from "@/lib/units";
@@ -280,27 +281,37 @@ export default function SaleScreen() {
     }
   }, [products, selectedId]);
 
-  const selectedProduct =
-    products.find((product) => product.id === selectedId) ?? products[0];
+  const debouncedProductQuery = useDebouncedValue(productQuery);
+  const selectedProduct = useMemo(
+    () => products.find((product) => product.id === selectedId) ?? products[0],
+    [products, selectedId],
+  );
   const visibleProducts = useMemo(() => {
-    const normalized = productQuery.trim().toLocaleLowerCase("es-PE");
+    const normalized = debouncedProductQuery.trim().toLocaleLowerCase("es-PE");
     if (!normalized) return products;
     return products.filter((product) =>
       `${product.name} ${product.sku} ${product.category}`
         .toLocaleLowerCase("es-PE")
         .includes(normalized),
     );
-  }, [productQuery, products]);
-  const productPresentations = presentations.filter(
-    (presentation) => presentation.productId === selectedProduct?.id,
+  }, [debouncedProductQuery, products]);
+  const productPresentations = useMemo(
+    () =>
+      presentations.filter(
+        (presentation) => presentation.productId === selectedProduct?.id,
+      ),
+    [presentations, selectedProduct],
   );
-  const selectedPresentation =
-    productPresentations.find(
-      (presentation) => presentation.id === selectedPresentationId,
-    ) ?? productPresentations[0];
-  const availableModes = modesForProduct(
-    selectedProduct,
-    productPresentations.length > 0,
+  const selectedPresentation = useMemo(
+    () =>
+      productPresentations.find(
+        (presentation) => presentation.id === selectedPresentationId,
+      ) ?? productPresentations[0],
+    [productPresentations, selectedPresentationId],
+  );
+  const availableModes = useMemo(
+    () => modesForProduct(selectedProduct, productPresentations.length > 0),
+    [selectedProduct, productPresentations],
   );
 
   useEffect(() => {
@@ -330,9 +341,55 @@ export default function SaleScreen() {
     () => calculateEntry(selectedProduct, selectedPresentation, mode, amount),
     [selectedProduct, selectedPresentation, mode, amount],
   );
-  const alreadyInCart = cart
-    .filter((line) => line.productId === selectedProduct?.id)
-    .reduce((sum, line) => sum + line.quantity, 0);
+  const { cartTotalCents, parsedPayments, allocatedCents, pendingPaymentCents, paymentsAreValid, alreadyInCart } =
+    useMemo(() => {
+      const cartTotalCents = cart.reduce(
+        (sum, line) => sum + line.totalCents,
+        0,
+      );
+      const parsedPayments = paymentDrafts.map((payment) => {
+        const amountCents = parseDecimalToInteger(payment.amount, 2);
+        const amountReceivedCents =
+          payment.method === "cash"
+            ? parseDecimalToInteger(payment.amountReceived, 2)
+            : null;
+        const changeCents =
+          payment.method === "cash" &&
+          amountCents !== null &&
+          amountReceivedCents !== null &&
+          amountReceivedCents >= amountCents
+            ? amountReceivedCents - amountCents
+            : null;
+        return { ...payment, amountCents, amountReceivedCents, changeCents };
+      });
+      const allocatedCents = parsedPayments.reduce(
+        (sum, payment) => sum + (payment.amountCents ?? 0),
+        0,
+      );
+      const pendingPaymentCents = cartTotalCents - allocatedCents;
+      const paymentsAreValid =
+        parsedPayments.length > 0 &&
+        parsedPayments.every(
+          (payment) =>
+            payment.amountCents !== null &&
+            payment.amountCents > 0 &&
+            (payment.method !== "cash" || payment.changeCents !== null) &&
+            (!requiresDemoValidation(payment.method) ||
+              payment.validationStatus === "approved"),
+        ) &&
+        pendingPaymentCents === 0;
+      const alreadyInCart = cart
+        .filter((line) => line.productId === selectedProduct?.id)
+        .reduce((sum, line) => sum + line.quantity, 0);
+      return {
+        cartTotalCents,
+        parsedPayments,
+        allocatedCents,
+        pendingPaymentCents,
+        paymentsAreValid,
+        alreadyInCart,
+      };
+    }, [cart, paymentDrafts, selectedProduct]);
   const availableStock = Math.max(
     0,
     (selectedProduct?.stockQuantity ?? 0) - alreadyInCart,
@@ -343,38 +400,11 @@ export default function SaleScreen() {
     calculation.totalCents > 0 &&
     !calculation.error &&
     !exceedsStock;
-  const cartTotalCents = cart.reduce((sum, line) => sum + line.totalCents, 0);
-  const parsedPayments = paymentDrafts.map((payment) => {
-    const amountCents = parseDecimalToInteger(payment.amount, 2);
-    const amountReceivedCents =
-      payment.method === "cash"
-        ? parseDecimalToInteger(payment.amountReceived, 2)
-        : null;
-    const changeCents =
-      payment.method === "cash" &&
-      amountCents !== null &&
-      amountReceivedCents !== null &&
-      amountReceivedCents >= amountCents
-        ? amountReceivedCents - amountCents
-        : null;
-    return { ...payment, amountCents, amountReceivedCents, changeCents };
-  });
-  const allocatedCents = parsedPayments.reduce(
-    (sum, payment) => sum + (payment.amountCents ?? 0),
-    0,
+  const handleSelectProduct = useCallback(
+    (productId: string) => setSelectedId(productId),
+    [],
   );
-  const pendingPaymentCents = cartTotalCents - allocatedCents;
-  const paymentsAreValid =
-    parsedPayments.length > 0 &&
-    parsedPayments.every(
-      (payment) =>
-        payment.amountCents !== null &&
-        payment.amountCents > 0 &&
-        (payment.method !== "cash" || payment.changeCents !== null) &&
-        (!requiresDemoValidation(payment.method) ||
-          payment.validationStatus === "approved"),
-    ) &&
-    pendingPaymentCents === 0;
+
   const canConfirm =
     Boolean(session && selectedUser && cart.length > 0) &&
     paymentsAreValid &&
@@ -722,64 +752,14 @@ export default function SaleScreen() {
         contentContainerStyle={styles.productList}
         showsHorizontalScrollIndicator={false}
       >
-        {visibleProducts.map((product) => {
-          const selected = product.id === selectedProduct?.id;
-          return (
-            <Pressable
-              accessibilityLabel={`${product.name}, ${formatMoney(product.priceCents)} por ${priceLabel(product)}`}
-              accessibilityRole="radio"
-              accessibilityState={{ selected }}
-              key={product.id}
-              onPress={() => setSelectedId(product.id)}
-              style={({ pressed }) => [
-                styles.productCard,
-                selected && styles.productCardSelected,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View
-                style={[
-                  styles.productIcon,
-                  selected && styles.productIconSelected,
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={
-                    product.baseUnit === "gram" ? "barley" : "package-variant"
-                  }
-                  size={24}
-                  color={selected ? BrandColors.white : BrandColors.green}
-                />
-              </View>
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.productName,
-                  selected && styles.productNameSelected,
-                ]}
-              >
-                {product.name}
-              </Text>
-              <Text
-                style={[
-                  styles.productPrice,
-                  selected && styles.productPriceSelected,
-                ]}
-              >
-                {formatMoney(product.priceCents)} / {priceLabel(product)}
-              </Text>
-              <Text
-                style={[
-                  styles.productStock,
-                  selected && styles.productStockSelected,
-                ]}
-              >
-                {formatQuantity(product.baseUnit, product.stockQuantity, true)}{" "}
-                disp.
-              </Text>
-            </Pressable>
-          );
-        })}
+        {visibleProducts.map((product) => (
+          <ProductCard
+            key={product.id}
+            product={product}
+            selected={product.id === selectedProduct?.id}
+            onSelect={handleSelectProduct}
+          />
+        ))}
       </ScrollView>
       {!visibleProducts.length ? (
         <View style={[sharedStyles.card, styles.noProducts]}>
@@ -1304,6 +1284,61 @@ export default function SaleScreen() {
     </AdminScreen>
   );
 }
+
+type ProductCardProps = {
+  product: ProductRecord;
+  selected: boolean;
+  onSelect: (productId: string) => void;
+};
+
+// Memoizado: el grid horizontal del POS deja de reconciliarse cuando el
+// operador teclea montos o cantidades; solo re-renderiza la tarjeta cuyo
+// estado `selected` cambia.
+const ProductCard = memo(function ProductCard({
+  product,
+  selected,
+  onSelect,
+}: ProductCardProps) {
+  return (
+    <Pressable
+      accessibilityLabel={`${product.name}, ${formatMoney(product.priceCents)} por ${priceLabel(product)}`}
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      onPress={() => onSelect(product.id)}
+      style={({ pressed }) => [
+        styles.productCard,
+        selected && styles.productCardSelected,
+        pressed && styles.pressed,
+      ]}
+    >
+      <View
+        style={[styles.productIcon, selected && styles.productIconSelected]}
+      >
+        <MaterialCommunityIcons
+          name={product.baseUnit === "gram" ? "barley" : "package-variant"}
+          size={24}
+          color={selected ? BrandColors.white : BrandColors.green}
+        />
+      </View>
+      <Text
+        numberOfLines={1}
+        style={[styles.productName, selected && styles.productNameSelected]}
+      >
+        {product.name}
+      </Text>
+      <Text
+        style={[styles.productPrice, selected && styles.productPriceSelected]}
+      >
+        {formatMoney(product.priceCents)} / {priceLabel(product)}
+      </Text>
+      <Text
+        style={[styles.productStock, selected && styles.productStockSelected]}
+      >
+        {formatQuantity(product.baseUnit, product.stockQuantity, true)} disp.
+      </Text>
+    </Pressable>
+  );
+});
 
 const styles = StyleSheet.create({
   feedbackCard: { gap: Spacing.xs, padding: Spacing.lg },

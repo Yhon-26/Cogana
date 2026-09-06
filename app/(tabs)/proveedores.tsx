@@ -544,95 +544,121 @@ export default function SuppliersScreen() {
       </ModalSurface>
 
       <ModalSurface
-        dialogStyle={styles.dialog}
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
         dismissOnBackdrop={!isSaving}
         onClose={() => {
           if (!isSaving) closeForm();
         }}
+        placement="bottom"
         visible={formVisible}
       >
-        <View style={styles.dialogHeader}>
-          <MaterialCommunityIcons
-            name={editing ? "pencil-outline" : "truck-plus-outline"}
-            size={24}
-            color={BrandColors.greenDark}
-          />
-          <Text maxFontSizeMultiplier={1.3} style={styles.dialogTitle}>
-            {editing ? "Editar proveedor" : "Nuevo proveedor"}
-          </Text>
+        <View style={styles.sheetHeader}>
+          <View style={styles.sheetHeaderCopy}>
+            <Text maxFontSizeMultiplier={1.3} style={styles.sheetTitle}>
+              {editing ? "Editar proveedor" : "Nuevo proveedor"}
+            </Text>
+            <Text style={styles.sheetMeta}>
+              El RUC es opcional, pero debe tener 11 dígitos.
+            </Text>
+          </View>
+          <Pressable
+            accessibilityLabel="Cerrar formulario"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={closeForm}
+            style={styles.sheetClose}
+          >
+            <MaterialCommunityIcons
+              name="close"
+              size={22}
+              color={BrandColors.muted}
+            />
+          </Pressable>
         </View>
-        <Text style={styles.dialogHint}>
-          El RUC es opcional, pero debe tener 11 dígitos.
-        </Text>
-        <SupplierInput
-          label="Razón social o nombre *"
-          onChangeText={(name) => setForm((current) => ({ ...current, name }))}
-          placeholder="Ej. Distribuidora Santa Anita"
-          value={form.name}
-        />
-        <View style={styles.twoColumns}>
+
+        <ScrollView
+          contentContainerStyle={styles.sheetBody}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          style={styles.sheetScroll}
+        >
           <SupplierInput
-            keyboardType="number-pad"
-            label="RUC"
-            maxLength={11}
-            onChangeText={(taxId) =>
-              setForm((current) => ({ ...current, taxId }))
+            label="Razón social o nombre *"
+            onChangeText={(name) => setForm((current) => ({ ...current, name }))}
+            placeholder="Ej. Distribuidora Santa Anita"
+            value={form.name}
+          />
+          <View style={styles.twoColumns}>
+            <View style={styles.half}>
+              <SupplierInput
+                keyboardType="number-pad"
+                label="RUC"
+                maxLength={11}
+                onChangeText={(taxId) =>
+                  setForm((current) => ({ ...current, taxId }))
+                }
+                placeholder="20123456789"
+                value={form.taxId}
+              />
+            </View>
+            <View style={styles.half}>
+              <SupplierInput
+                keyboardType="phone-pad"
+                label="Teléfono"
+                onChangeText={(phone) =>
+                  setForm((current) => ({ ...current, phone }))
+                }
+                placeholder="999 999 999"
+                value={form.phone}
+              />
+            </View>
+          </View>
+          <SupplierInput
+            label="Persona de contacto"
+            onChangeText={(contactName) =>
+              setForm((current) => ({ ...current, contactName }))
             }
-            placeholder="20123456789"
-            value={form.taxId}
+            placeholder="Nombre del contacto"
+            value={form.contactName}
           />
           <SupplierInput
-            keyboardType="phone-pad"
-            label="Teléfono"
-            onChangeText={(phone) =>
-              setForm((current) => ({ ...current, phone }))
+            autoCapitalize="none"
+            keyboardType="email-address"
+            label="Correo"
+            onChangeText={(email) =>
+              setForm((current) => ({ ...current, email }))
             }
-            placeholder="999 999 999"
-            value={form.phone}
+            placeholder="ventas@proveedor.pe"
+            value={form.email}
           />
-        </View>
-        <SupplierInput
-          label="Persona de contacto"
-          onChangeText={(contactName) =>
-            setForm((current) => ({ ...current, contactName }))
-          }
-          placeholder="Nombre del contacto"
-          value={form.contactName}
-        />
-        <SupplierInput
-          autoCapitalize="none"
-          keyboardType="email-address"
-          label="Correo"
-          onChangeText={(email) =>
-            setForm((current) => ({ ...current, email }))
-          }
-          placeholder="ventas@proveedor.pe"
-          value={form.email}
-        />
-        <SupplierInput
-          label="Dirección"
-          onChangeText={(address) =>
-            setForm((current) => ({ ...current, address }))
-          }
-          placeholder="Dirección comercial"
-          value={form.address}
-        />
-        <SupplierInput
-          label="Notas"
-          multiline
-          onChangeText={(notes) =>
-            setForm((current) => ({ ...current, notes }))
-          }
-          placeholder="Condiciones, días de reparto u observaciones"
-          value={form.notes}
-        />
-        <View style={styles.dialogActions}>
+          <SupplierInput
+            label="Dirección"
+            onChangeText={(address) =>
+              setForm((current) => ({ ...current, address }))
+            }
+            placeholder="Dirección comercial"
+            value={form.address}
+          />
+          <SupplierInput
+            label="Notas"
+            multiline
+            onChangeText={(notes) =>
+              setForm((current) => ({ ...current, notes }))
+            }
+            placeholder="Condiciones, días de reparto u observaciones"
+            value={form.notes}
+          />
+        </ScrollView>
+
+        <View style={styles.sheetFooter}>
           <ActionButton
             compact
             disabled={isSaving}
             label="Cancelar"
             onPress={closeForm}
-            style={styles.dialogButton}
+            style={styles.footerButton}
             tone="ghost"
           />
           <ActionButton
@@ -641,7 +667,7 @@ export default function SuppliersScreen() {
             label={isSaving ? "Guardando…" : "Guardar proveedor"}
             loading={isSaving}
             onPress={() => void save()}
-            style={styles.dialogButton}
+            style={styles.saveFooterButton}
           />
         </View>
       </ModalSurface>
@@ -787,13 +813,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   footerButton: { flex: 1 },
-  field: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 220,
-    minWidth: 190,
-    gap: Spacing.xxs,
-  },
+  field: { gap: Spacing.xxs },
   inputLabel: { color: BrandColors.text, ...Typography.label },
   input: {
     minHeight: ControlSize.default,
@@ -810,21 +830,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.sm,
     textAlignVertical: "top",
   },
-  twoColumns: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
-  dialog: {
-    backgroundColor: BrandColors.white,
-    borderRadius: Radius.lg,
-    padding: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  dialogHeader: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
-  dialogTitle: { color: BrandColors.text, ...Typography.h3, flex: 1 },
-  dialogHint: { color: BrandColors.muted, ...Typography.caption },
-  dialogActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: Spacing.xs,
-    marginTop: Spacing.xs,
-  },
-  dialogButton: { flex: 1 },
+  twoColumns: { flexDirection: "row", gap: Spacing.sm },
+  half: { flex: 1 },
+  saveFooterButton: { flex: 1.6 },
 });

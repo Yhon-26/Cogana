@@ -3,25 +3,30 @@ import { useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   type TextInputProps,
   View,
+  useWindowDimensions,
 } from "react-native";
 
 import {
+  ActionButton,
   AdminScreen,
   Pill,
   PrimaryButton,
   SectionTitle,
   sharedStyles,
 } from "@/components/admin-ui";
-import { OperatorSelector } from "@/components/operator-selector";
+import { ModalSurface } from "@/components/modal-surface";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   BrandColors,
   ComponentMetrics,
   ControlSize,
+  Elevation,
+  Interaction,
   Radius,
   Spacing,
   Typography,
@@ -92,7 +97,10 @@ export default function SuppliersScreen() {
   const { selectedUser, deviceId } = useLocalOperator();
   const { database, suppliers, isLoading, error, refresh } =
     useLocalSuppliers();
+  const { height } = useWindowDimensions();
+  const sheetMaxHeight = Math.round(height * 0.88);
   const [query, setQuery] = useState("");
+  const [detail, setDetail] = useState<SupplierRecord | null>(null);
   const [form, setForm] = useState<SupplierForm>(emptyForm);
   const [editing, setEditing] = useState<SupplierRecord | null>(null);
   const [formVisible, setFormVisible] = useState(false);
@@ -126,6 +134,7 @@ export default function SuppliersScreen() {
   const startEdit = (supplier: SupplierRecord) => {
     setEditing(supplier);
     setForm(formFromSupplier(supplier));
+    setDetail(null);
     setFormVisible(true);
   };
 
@@ -190,6 +199,7 @@ export default function SuppliersScreen() {
                   deviceId,
                 });
                 await refresh(false);
+                setDetail(null);
               } catch (caughtError) {
                 Alert.alert(
                   "No se pudo cambiar el estado",
@@ -203,185 +213,67 @@ export default function SuppliersScreen() {
     );
   };
 
-  if (isLoading) {
-    return (
-      <AdminScreen
-        title="Proveedores"
-        subtitle="Directorio comercial y condiciones de compra"
-      >
-        <View style={[sharedStyles.card, styles.feedbackCard]}>
-          <Text accessibilityLiveRegion="polite" style={styles.feedbackTitle}>
-            Cargando proveedores locales…
-          </Text>
-        </View>
-      </AdminScreen>
-    );
-  }
+  const activeCount = suppliers.filter((supplier) => supplier.isActive).length;
 
   return (
     <AdminScreen
       title="Proveedores"
       subtitle="Datos fiscales, contacto y disponibilidad"
+      right={
+        canManage ? (
+          <Pressable
+            accessibilityLabel="Nuevo proveedor"
+            accessibilityRole="button"
+            style={styles.addHeader}
+            onPress={startCreate}
+          >
+            <MaterialCommunityIcons
+              name="plus"
+              size={23}
+              color={BrandColors.white}
+            />
+          </Pressable>
+        ) : null
+      }
     >
-      <SectionTitle>Usuario de la operación</SectionTitle>
-      <OperatorSelector />
-
-      {!canManage ? (
-        <View style={[sharedStyles.card, styles.warningCard]}>
+      {!selectedUser ? (
+        <View style={[sharedStyles.card, styles.operatorNotice]}>
           <MaterialCommunityIcons
-            name="shield-lock-outline"
-            size={Typography.h2.fontSize}
+            name="account-key-outline"
+            size={22}
             color={BrandColors.warning}
           />
-          <Text style={styles.warningText}>
-            Puedes consultar el directorio. Solo un administrador puede crear o
-            modificar proveedores.
-          </Text>
+          <View style={styles.operatorNoticeCopy}>
+            <Text style={styles.operatorNoticeTitle}>Falta tu operador</Text>
+            <Text style={styles.operatorNoticeText}>
+              Activa tu perfil con PIN en la pestaña Más para gestionar
+              proveedores.
+            </Text>
+          </View>
         </View>
       ) : null}
 
-      {error ? (
-        <View style={[sharedStyles.card, styles.feedbackCard]}>
-          <Text
-            accessibilityLiveRegion="assertive"
-            accessibilityRole="alert"
-            style={styles.errorText}
-          >
-            {getOperatorErrorMessage(
-              error,
-              "No se pudieron cargar los proveedores. Intenta nuevamente.",
-            )}
-          </Text>
-          <PrimaryButton label="Reintentar" onPress={() => void refresh()} />
+      {selectedUser && !canManage ? (
+        <View style={[sharedStyles.card, styles.operatorNotice]}>
+          <MaterialCommunityIcons
+            name="shield-lock-outline"
+            size={22}
+            color={BrandColors.warning}
+          />
+          <View style={styles.operatorNoticeCopy}>
+            <Text style={styles.operatorNoticeTitle}>Solo consulta</Text>
+            <Text style={styles.operatorNoticeText}>
+              Puedes revisar el directorio. Solo un administrador crea o
+              modifica proveedores.
+            </Text>
+          </View>
         </View>
       ) : null}
 
-      {formVisible ? (
-        <View style={[sharedStyles.card, styles.formCard]}>
-          <View style={styles.formHeader}>
-            <View>
-              <Text style={styles.formTitle}>
-                {editing ? "Editar proveedor" : "Nuevo proveedor"}
-              </Text>
-              <Text style={styles.formSubtitle}>
-                El RUC es opcional, pero debe tener 11 dígitos.
-              </Text>
-            </View>
-            <Pressable
-              accessibilityLabel="Cerrar formulario"
-              accessibilityRole="button"
-              onPress={closeForm}
-              style={styles.iconButton}
-            >
-              <MaterialCommunityIcons
-                name="close"
-                size={Typography.h2.fontSize}
-                color={BrandColors.muted}
-              />
-            </Pressable>
-          </View>
-          <SupplierInput
-            label="Razón social o nombre *"
-            onChangeText={(name) =>
-              setForm((current) => ({ ...current, name }))
-            }
-            placeholder="Ej. Distribuidora Santa Anita"
-            value={form.name}
-          />
-          <View style={styles.twoColumns}>
-            <SupplierInput
-              keyboardType="number-pad"
-              label="RUC"
-              maxLength={11}
-              onChangeText={(taxId) =>
-                setForm((current) => ({ ...current, taxId }))
-              }
-              placeholder="20123456789"
-              value={form.taxId}
-            />
-            <SupplierInput
-              keyboardType="phone-pad"
-              label="Teléfono"
-              onChangeText={(phone) =>
-                setForm((current) => ({ ...current, phone }))
-              }
-              placeholder="999 999 999"
-              value={form.phone}
-            />
-          </View>
-          <SupplierInput
-            label="Persona de contacto"
-            onChangeText={(contactName) =>
-              setForm((current) => ({ ...current, contactName }))
-            }
-            placeholder="Nombre del contacto"
-            value={form.contactName}
-          />
-          <SupplierInput
-            autoCapitalize="none"
-            keyboardType="email-address"
-            label="Correo"
-            onChangeText={(email) =>
-              setForm((current) => ({ ...current, email }))
-            }
-            placeholder="ventas@proveedor.pe"
-            value={form.email}
-          />
-          <SupplierInput
-            label="Dirección"
-            onChangeText={(address) =>
-              setForm((current) => ({ ...current, address }))
-            }
-            placeholder="Dirección comercial"
-            value={form.address}
-          />
-          <SupplierInput
-            label="Notas"
-            multiline
-            onChangeText={(notes) =>
-              setForm((current) => ({ ...current, notes }))
-            }
-            placeholder="Condiciones, días de reparto u observaciones"
-            value={form.notes}
-          />
-          <View style={styles.formActions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={closeForm}
-              style={styles.secondaryButton}
-            >
-              <Text style={styles.secondaryButtonText}>Cancelar</Text>
-            </Pressable>
-            <PrimaryButton
-              disabled={!form.name.trim() || isSaving}
-              icon="content-save-outline"
-              label={isSaving ? "Guardando…" : "Guardar proveedor"}
-              onPress={() => void save()}
-              style={styles.saveButton}
-            />
-          </View>
-        </View>
-      ) : canManage ? (
-        <PrimaryButton
-          icon="truck-plus-outline"
-          label="Nuevo proveedor"
-          onPress={startCreate}
-        />
-      ) : null}
-
-      <SectionTitle
-        action={
-          <Pill
-            label={`${suppliers.filter((item) => item.isActive).length} activos`}
-          />
-        }
-      >
-        Directorio
-      </SectionTitle>
       <View style={styles.searchWrap}>
         <MaterialCommunityIcons
           name="magnify"
-          size={Typography.h2.fontSize}
+          size={21}
           color={BrandColors.muted}
         />
         <TextInput
@@ -392,162 +284,515 @@ export default function SuppliersScreen() {
           style={styles.searchInput}
           value={query}
         />
-      </View>
-
-      <View style={styles.list}>
-        {filteredSuppliers.length === 0 ? (
-          <View style={[sharedStyles.card, styles.emptyCard]}>
+        {query ? (
+          <Pressable
+            accessibilityLabel="Limpiar búsqueda"
+            accessibilityRole="button"
+            onPress={() => setQuery("")}
+            style={styles.clearButton}
+          >
             <MaterialCommunityIcons
-              name="truck-outline"
-              size={Typography.display.fontSize}
+              name="close-circle"
+              size={19}
               color={BrandColors.muted}
             />
-            <Text style={styles.emptyTitle}>
-              No hay proveedores para mostrar
-            </Text>
-            <Text style={styles.emptyText}>
-              Crea el primero o cambia el texto de búsqueda.
-            </Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      <SectionTitle action={<Pill label={`${activeCount} activos`} />}>
+        Directorio
+      </SectionTitle>
+
+      {isLoading ? (
+        <View style={[sharedStyles.card, styles.feedback]}>
+          <Text style={styles.muted}>Cargando proveedores…</Text>
+        </View>
+      ) : error ? (
+        <View style={[sharedStyles.card, styles.feedback]}>
+          <Text accessibilityRole="alert" style={styles.errorText}>
+            {getOperatorErrorMessage(
+              error,
+              "No se pudieron cargar los proveedores. Intenta nuevamente.",
+            )}
+          </Text>
+          <PrimaryButton label="Reintentar" onPress={() => void refresh()} />
+        </View>
+      ) : filteredSuppliers.length === 0 ? (
+        <View style={[sharedStyles.card, styles.empty]}>
+          <View style={styles.emptyIcon}>
+            <MaterialCommunityIcons
+              name="truck-outline"
+              size={30}
+              color={BrandColors.green}
+            />
           </View>
-        ) : (
-          filteredSuppliers.map((supplier) => (
-            <View
+          <Text maxFontSizeMultiplier={1.3} style={styles.emptyTitle}>
+            {suppliers.length === 0
+              ? "Aún no hay proveedores"
+              : "Sin resultados"}
+          </Text>
+          <Text style={styles.muted}>
+            {suppliers.length === 0
+              ? "Registra tu distribuidora con sus datos de contacto y RUC."
+              : "Prueba con otro nombre, RUC o contacto."}
+          </Text>
+          {suppliers.length === 0 && canManage ? (
+            <PrimaryButton
+              label="Nuevo proveedor"
+              icon="truck-plus-outline"
+              onPress={startCreate}
+            />
+          ) : null}
+          {suppliers.length > 0 ? (
+            <PrimaryButton
+              label="Limpiar búsqueda"
+              icon="magnify"
+              onPress={() => setQuery("")}
+            />
+          ) : null}
+        </View>
+      ) : (
+        <View style={styles.list}>
+          {filteredSuppliers.map((supplier) => (
+            <Pressable
+              accessibilityLabel={`Abrir proveedor ${supplier.name}`}
+              accessibilityRole="button"
               key={supplier.id}
-              style={[
+              onPress={() => setDetail(supplier)}
+              style={({ pressed }) => [
                 sharedStyles.card,
-                styles.supplierCard,
-                !supplier.isActive && styles.supplierInactive,
+                styles.supplierRow,
+                pressed && styles.pressed,
               ]}
             >
-              <View style={styles.supplierHeader}>
-                <View style={styles.supplierIcon}>
-                  <MaterialCommunityIcons
-                    name="truck-delivery-outline"
-                    size={Typography.h2.fontSize}
-                    color={BrandColors.greenDark}
-                  />
-                </View>
-                <View style={styles.supplierCopy}>
-                  <Text style={styles.supplierName}>{supplier.name}</Text>
-                  <Text style={styles.supplierMeta}>
-                    {supplier.taxId
-                      ? `RUC ${supplier.taxId}`
-                      : "Sin RUC registrado"}
-                  </Text>
-                </View>
-                <Pill
-                  label={supplier.isActive ? "Activo" : "Inactivo"}
-                  tone={supplier.isActive ? "green" : "neutral"}
+              <View
+                style={[
+                  styles.rowIcon,
+                  !supplier.isActive && styles.rowIconMuted,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="truck-delivery-outline"
+                  size={20}
+                  color={supplier.isActive ? BrandColors.green : BrandColors.muted}
                 />
               </View>
-              {supplier.contactName || supplier.phone || supplier.email ? (
-                <View style={styles.contactBlock}>
-                  {supplier.contactName ? (
-                    <Text style={styles.contactText}>
-                      Contacto: {supplier.contactName}
-                    </Text>
-                  ) : null}
-                  {supplier.phone ? (
-                    <Text style={styles.contactText}>
-                      Teléfono: {supplier.phone}
-                    </Text>
-                  ) : null}
-                  {supplier.email ? (
-                    <Text style={styles.contactText}>
-                      Correo: {supplier.email}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-              {canManage ? (
-                <View style={styles.cardActions}>
-                  <Pressable
-                    accessibilityLabel={`Editar proveedor ${supplier.name}`}
-                    accessibilityRole="button"
-                    onPress={() => startEdit(supplier)}
-                    style={styles.cardActionButton}
-                  >
-                    <MaterialCommunityIcons
-                      name="pencil-outline"
-                      size={Typography.h3.fontSize}
-                      color={BrandColors.greenDark}
-                    />
-                    <Text style={styles.cardActionText}>Editar</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityLabel={`${supplier.isActive ? "Desactivar" : "Activar"} proveedor ${supplier.name}`}
-                    accessibilityRole="switch"
-                    accessibilityState={{ checked: supplier.isActive }}
-                    onPress={() => toggleActive(supplier)}
-                    style={[
-                      styles.cardActionButton,
-                      !supplier.isActive && styles.activateButton,
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={supplier.isActive ? "archive-outline" : "restore"}
-                      size={Typography.h3.fontSize}
-                      color={
-                        supplier.isActive
-                          ? BrandColors.danger
-                          : BrandColors.greenDark
-                      }
-                    />
-                    <Text
-                      style={[
-                        styles.cardActionText,
-                        supplier.isActive && styles.deactivateText,
-                      ]}
-                    >
-                      {supplier.isActive ? "Desactivar" : "Activar"}
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : null}
+              <View style={styles.rowCopy}>
+                <Text
+                  maxFontSizeMultiplier={1.3}
+                  numberOfLines={1}
+                  style={styles.rowName}
+                >
+                  {supplier.name}
+                </Text>
+                <Text numberOfLines={1} style={styles.rowMeta}>
+                  {supplier.contactName
+                    ? supplier.contactName
+                    : supplier.taxId
+                      ? `RUC ${supplier.taxId}`
+                      : "Sin contacto registrado"}
+                </Text>
+              </View>
+              <Pill
+                label={supplier.isActive ? "Activo" : "Inactivo"}
+                tone={supplier.isActive ? "green" : "neutral"}
+              />
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={18}
+                color={BrandColors.muted}
+              />
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        onClose={() => setDetail(null)}
+        placement="bottom"
+        visible={detail !== null}
+      >
+        {detail ? (
+          <>
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetHeaderCopy}>
+                <Text
+                  maxFontSizeMultiplier={1.3}
+                  numberOfLines={2}
+                  style={styles.sheetTitle}
+                >
+                  {detail.name}
+                </Text>
+                <Text style={styles.sheetMeta}>
+                  {detail.taxId ? `RUC ${detail.taxId}` : "Sin RUC registrado"}
+                </Text>
+              </View>
+              <Pill
+                label={detail.isActive ? "Activo" : "Inactivo"}
+                tone={detail.isActive ? "green" : "neutral"}
+              />
+              <Pressable
+                accessibilityLabel="Cerrar detalle del proveedor"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setDetail(null)}
+                style={styles.sheetClose}
+              >
+                <MaterialCommunityIcons
+                  name="close"
+                  size={22}
+                  color={BrandColors.muted}
+                />
+              </Pressable>
             </View>
-          ))
-        )}
-      </View>
+
+            <ScrollView
+              contentContainerStyle={styles.sheetBody}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+              style={styles.sheetScroll}
+            >
+              <View style={[sharedStyles.card, styles.summaryCard]}>
+                {detail.contactName ? (
+                  <View style={styles.summaryRow}>
+                    <MaterialCommunityIcons
+                      name="account-outline"
+                      size={16}
+                      color={BrandColors.muted}
+                    />
+                    <Text style={styles.summaryText}>
+                      {detail.contactName}
+                    </Text>
+                  </View>
+                ) : null}
+                {detail.phone ? (
+                  <View style={styles.summaryRow}>
+                    <MaterialCommunityIcons
+                      name="phone-outline"
+                      size={16}
+                      color={BrandColors.muted}
+                    />
+                    <Text style={styles.summaryText}>{detail.phone}</Text>
+                  </View>
+                ) : null}
+                {detail.email ? (
+                  <View style={styles.summaryRow}>
+                    <MaterialCommunityIcons
+                      name="email-outline"
+                      size={16}
+                      color={BrandColors.muted}
+                    />
+                    <Text style={styles.summaryText}>{detail.email}</Text>
+                  </View>
+                ) : null}
+                {detail.address ? (
+                  <View style={styles.summaryRow}>
+                    <MaterialCommunityIcons
+                      name="map-marker-outline"
+                      size={16}
+                      color={BrandColors.muted}
+                    />
+                    <Text style={styles.summaryText}>{detail.address}</Text>
+                  </View>
+                ) : null}
+                {detail.notes ? (
+                  <View style={styles.summaryRow}>
+                    <MaterialCommunityIcons
+                      name="text-box-outline"
+                      size={16}
+                      color={BrandColors.muted}
+                    />
+                    <Text style={styles.summaryText}>{detail.notes}</Text>
+                  </View>
+                ) : null}
+                {!detail.contactName &&
+                !detail.phone &&
+                !detail.email &&
+                !detail.address &&
+                !detail.notes ? (
+                  <Text style={styles.summaryText}>
+                    Este proveedor aún no tiene datos de contacto. Agrégalos
+                    editando la ficha.
+                  </Text>
+                ) : null}
+              </View>
+            </ScrollView>
+
+            {canManage ? (
+              <View style={styles.sheetFooter}>
+                <ActionButton
+                  label="Editar ficha"
+                  icon="pencil-outline"
+                  onPress={() => startEdit(detail)}
+                  style={styles.footerButton}
+                  tone="secondary"
+                />
+                <ActionButton
+                  label={detail.isActive ? "Desactivar" : "Activar"}
+                  icon={detail.isActive ? "archive-outline" : "restore"}
+                  onPress={() => toggleActive(detail)}
+                  style={styles.footerButton}
+                  tone={detail.isActive ? "danger" : "primary"}
+                />
+              </View>
+            ) : null}
+          </>
+        ) : null}
+      </ModalSurface>
+
+      <ModalSurface
+        dialogStyle={styles.dialog}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (!isSaving) closeForm();
+        }}
+        visible={formVisible}
+      >
+        <View style={styles.dialogHeader}>
+          <MaterialCommunityIcons
+            name={editing ? "pencil-outline" : "truck-plus-outline"}
+            size={24}
+            color={BrandColors.greenDark}
+          />
+          <Text maxFontSizeMultiplier={1.3} style={styles.dialogTitle}>
+            {editing ? "Editar proveedor" : "Nuevo proveedor"}
+          </Text>
+        </View>
+        <Text style={styles.dialogHint}>
+          El RUC es opcional, pero debe tener 11 dígitos.
+        </Text>
+        <SupplierInput
+          label="Razón social o nombre *"
+          onChangeText={(name) => setForm((current) => ({ ...current, name }))}
+          placeholder="Ej. Distribuidora Santa Anita"
+          value={form.name}
+        />
+        <View style={styles.twoColumns}>
+          <SupplierInput
+            keyboardType="number-pad"
+            label="RUC"
+            maxLength={11}
+            onChangeText={(taxId) =>
+              setForm((current) => ({ ...current, taxId }))
+            }
+            placeholder="20123456789"
+            value={form.taxId}
+          />
+          <SupplierInput
+            keyboardType="phone-pad"
+            label="Teléfono"
+            onChangeText={(phone) =>
+              setForm((current) => ({ ...current, phone }))
+            }
+            placeholder="999 999 999"
+            value={form.phone}
+          />
+        </View>
+        <SupplierInput
+          label="Persona de contacto"
+          onChangeText={(contactName) =>
+            setForm((current) => ({ ...current, contactName }))
+          }
+          placeholder="Nombre del contacto"
+          value={form.contactName}
+        />
+        <SupplierInput
+          autoCapitalize="none"
+          keyboardType="email-address"
+          label="Correo"
+          onChangeText={(email) =>
+            setForm((current) => ({ ...current, email }))
+          }
+          placeholder="ventas@proveedor.pe"
+          value={form.email}
+        />
+        <SupplierInput
+          label="Dirección"
+          onChangeText={(address) =>
+            setForm((current) => ({ ...current, address }))
+          }
+          placeholder="Dirección comercial"
+          value={form.address}
+        />
+        <SupplierInput
+          label="Notas"
+          multiline
+          onChangeText={(notes) =>
+            setForm((current) => ({ ...current, notes }))
+          }
+          placeholder="Condiciones, días de reparto u observaciones"
+          value={form.notes}
+        />
+        <View style={styles.dialogActions}>
+          <ActionButton
+            compact
+            disabled={isSaving}
+            label="Cancelar"
+            onPress={closeForm}
+            style={styles.dialogButton}
+            tone="ghost"
+          />
+          <ActionButton
+            compact
+            disabled={!form.name.trim() || isSaving}
+            label={isSaving ? "Guardando…" : "Guardar proveedor"}
+            loading={isSaving}
+            onPress={() => void save()}
+            style={styles.dialogButton}
+          />
+        </View>
+      </ModalSurface>
     </AdminScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  feedbackCard: { gap: Spacing.sm },
-  feedbackTitle: { color: BrandColors.text, ...Typography.label },
-  errorText: { color: BrandColors.danger, ...Typography.caption },
-  warningCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-    backgroundColor: BrandColors.goldLight,
-  },
-  warningText: { flex: 1, color: BrandColors.warning, ...Typography.body },
-  formCard: { gap: Spacing.sm },
-  formHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  formTitle: { color: BrandColors.text, ...Typography.h3 },
-  formSubtitle: {
-    color: BrandColors.muted,
-    ...Typography.caption,
-    marginTop: Spacing.xxs,
-  },
-  iconButton: {
+  addHeader: {
     width: ControlSize.default,
     height: ControlSize.default,
     borderRadius: Radius.md,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: BrandColors.green,
   },
+  operatorNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  operatorNoticeCopy: { flex: 1 },
+  operatorNoticeTitle: { color: BrandColors.text, ...Typography.label },
+  operatorNoticeText: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  searchWrap: {
+    minHeight: ControlSize.default,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: BrandColors.line,
+    backgroundColor: BrandColors.white,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingLeft: Spacing.md,
+    gap: Spacing.xs,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    color: BrandColors.text,
+    ...Typography.body,
+    paddingVertical: 13,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+  },
+  clearButton: {
+    width: ControlSize.default,
+    height: ControlSize.default,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  feedback: { gap: Spacing.sm },
+  empty: {
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xxl,
+  },
+  emptyIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  emptyTitle: { color: BrandColors.text, ...Typography.h3 },
+  muted: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    textAlign: "center",
+  },
+  errorText: { color: BrandColors.danger, ...Typography.caption },
+  list: { gap: Spacing.sm },
+  supplierRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    minHeight: 64,
+    ...Elevation.ambientCard,
+  },
+  pressed: {
+    opacity: Interaction.pressedOpacity,
+    transform: [{ scale: Interaction.pressedScale }],
+  },
+  rowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowIconMuted: { backgroundColor: BrandColors.surfaceMuted },
+  rowCopy: { flex: 1 },
+  rowName: { color: BrandColors.text, ...Typography.label },
+  rowMeta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  sheet: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  sheetScroll: { flexShrink: 1 },
+  sheetBody: { gap: Spacing.sm, paddingBottom: Spacing.xs },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  sheetHeaderCopy: { flex: 1 },
+  sheetTitle: { color: BrandColors.text, ...Typography.h3 },
+  sheetMeta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  sheetClose: {
+    width: ControlSize.compact,
+    height: ControlSize.compact,
+    borderRadius: Radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  summaryCard: { gap: Spacing.xs },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  summaryText: {
+    flex: 1,
+    color: BrandColors.muted,
+    ...Typography.caption,
+  },
+  sheetFooter: {
+    flexDirection: "row",
+    gap: Spacing.xs,
+  },
+  footerButton: { flex: 1 },
   field: {
     flexGrow: 1,
     flexShrink: 1,
     flexBasis: 220,
     minWidth: 190,
-    gap: Spacing.xs,
+    gap: Spacing.xxs,
   },
   inputLabel: { color: BrandColors.text, ...Typography.label },
   input: {
@@ -566,87 +811,20 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   twoColumns: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
-  formActions: {
-    flexDirection: "row",
-    alignItems: "center",
+  dialog: {
+    backgroundColor: BrandColors.white,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
     gap: Spacing.sm,
-    marginTop: Spacing.xxs,
   },
-  secondaryButton: {
-    minHeight: ControlSize.large,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: BrandColors.green,
-    backgroundColor: BrandColors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.md,
-  },
-  secondaryButtonText: { color: BrandColors.greenDark, ...Typography.label },
-  saveButton: { flex: 1 },
-  searchWrap: {
-    minHeight: ControlSize.default,
-    borderWidth: 1,
-    borderColor: BrandColors.line,
-    borderRadius: ComponentMetrics.inputRadius,
-    backgroundColor: BrandColors.white,
+  dialogHeader: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
+  dialogTitle: { color: BrandColors.text, ...Typography.h3, flex: 1 },
+  dialogHint: { color: BrandColors.muted, ...Typography.caption },
+  dialogActions: {
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.sm,
+    justifyContent: "flex-end",
     gap: Spacing.xs,
+    marginTop: Spacing.xs,
   },
-  searchInput: { flex: 1, color: BrandColors.text, ...Typography.body },
-  list: { gap: Spacing.sm },
-  emptyCard: { alignItems: "center", paddingVertical: Spacing.xxl },
-  emptyTitle: {
-    color: BrandColors.text,
-    ...Typography.h3,
-    marginTop: Spacing.sm,
-  },
-  emptyText: {
-    color: BrandColors.muted,
-    ...Typography.body,
-    marginTop: Spacing.xxs,
-  },
-  supplierCard: { gap: Spacing.sm },
-  supplierInactive: { backgroundColor: BrandColors.surfaceMuted },
-  supplierHeader: { flexDirection: "row", alignItems: "center" },
-  supplierIcon: {
-    width: ControlSize.default,
-    height: ControlSize.default,
-    borderRadius: Radius.md,
-    backgroundColor: BrandColors.greenLight,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  supplierCopy: { flex: 1, marginHorizontal: Spacing.sm },
-  supplierName: { color: BrandColors.text, ...Typography.h3 },
-  supplierMeta: {
-    color: BrandColors.muted,
-    ...Typography.caption,
-    marginTop: Spacing.xxs,
-  },
-  contactBlock: {
-    backgroundColor: BrandColors.cream,
-    borderRadius: Radius.sm,
-    padding: Spacing.sm,
-    gap: Spacing.xxs,
-  },
-  contactText: { color: BrandColors.muted, ...Typography.body },
-  cardActions: { flexDirection: "row", gap: Spacing.sm },
-  cardActionButton: {
-    flex: 1,
-    minHeight: ControlSize.default,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: BrandColors.line,
-    backgroundColor: BrandColors.white,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.xs,
-  },
-  activateButton: { backgroundColor: BrandColors.greenLight },
-  cardActionText: { color: BrandColors.greenDark, ...Typography.label },
-  deactivateText: { color: BrandColors.danger },
+  dialogButton: { flex: 1 },
 });

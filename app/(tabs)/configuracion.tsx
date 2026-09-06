@@ -1,25 +1,38 @@
 import Constants from "expo-constants";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 
 import {
+  ActionButton,
   AdminScreen,
   Pill,
   SectionTitle,
   sharedStyles,
 } from "@/components/admin-ui";
-import { OperatorSelector } from "@/components/operator-selector";
+import { ModalSurface } from "@/components/modal-surface";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   BrandColors,
-  ComponentMetrics,
   ControlSize,
+  Elevation,
+  Interaction,
   Radius,
   Spacing,
   Typography,
 } from "@/constants/theme";
 import { useAppPreferences } from "@/context/app-preferences-context";
+import { useLocalOperator } from "@/context/local-operator-context";
 import {
   configureFiscalIntegration,
   getAdminSettings,
@@ -70,10 +83,19 @@ const fiscalEnvironmentLabels: Record<
   production: "Producción",
 };
 
+type SheetName = "store" | "branches" | "fiscal" | null;
+
 export default function SettingsScreen() {
   const { preferences, updatePreferences } = useAppPreferences();
+  const { selectedUser } = useLocalOperator();
+  const { height } = useWindowDimensions();
+  const sheetMaxHeight = Math.round(height * 0.88);
   const [settings, setSettings] = useState(empty);
+  const [sheet, setSheet] = useState<SheetName>(null);
   const [branch, setBranch] = useState<StoreBranchInput>(emptyBranch);
+  const [branchFormVisible, setBranchFormVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
   const load = useCallback(async () => {
     try {
       setSettings(await getAdminSettings());
@@ -90,8 +112,11 @@ export default function SettingsScreen() {
   useFocusEffect(useCallback(() => void load(), [load]));
 
   const saveStore = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       await updateStoreSettings(settings.store);
+      setSheet(null);
       Alert.alert(
         "Tienda actualizada",
         "Los datos centrales fueron guardados.",
@@ -104,11 +129,16 @@ export default function SettingsScreen() {
           "Revisa los datos e intenta nuevamente.",
         ),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
   const saveFiscal = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const result = await configureFiscalIntegration(settings.fiscal);
+      setSheet(null);
       Alert.alert(
         "Configuración fiscal guardada",
         result.requiresServerSecret
@@ -123,12 +153,17 @@ export default function SettingsScreen() {
           "Revisa los datos e intenta nuevamente.",
         ),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
   const saveBranch = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const saved = await saveStoreBranch(branch);
       setBranch(emptyBranch);
+      setBranchFormVisible(false);
       await load();
       Alert.alert(
         saved.created ? "Sucursal creada" : "Sucursal actualizada",
@@ -144,6 +179,8 @@ export default function SettingsScreen() {
           "Revisa los datos e intenta nuevamente.",
         ),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
   const applyPreference = async (next: typeof preferences) => {
@@ -156,259 +193,100 @@ export default function SettingsScreen() {
       );
     }
   };
+
+  const navigationRows = [
+    {
+      icon: "storefront-outline",
+      title: "Datos de tienda",
+      subtitle: settings.store.legalName || "Razón social, RUC, horario y ticket",
+      sheet: "store" as const,
+    },
+    {
+      icon: "source-branch",
+      title: "Sucursales",
+      subtitle: `${settings.stores.length} visible${settings.stores.length === 1 ? "" : "s"} · código, dirección y estado`,
+      sheet: "branches" as const,
+    },
+    {
+      icon: "receipt-text-outline",
+      title: "Facturación SUNAT",
+      subtitle:
+        settings.fiscal.environment === "disabled"
+          ? "Integración deshabilitada"
+          : `Proveedor ${settings.fiscal.provider} · ${fiscalEnvironmentLabels[settings.fiscal.environment]}`,
+      sheet: "fiscal" as const,
+    },
+  ];
+
   return (
     <AdminScreen
       title="Configuración"
       subtitle="Tienda, sucursales y facturación"
     >
-      <OperatorSelector />
-      <SectionTitle>Datos de tienda</SectionTitle>
-      <View style={[sharedStyles.card, styles.card]}>
-        <Field
-          placeholder="Razón social"
-          value={settings.store.legalName}
-          onChangeText={(value) =>
-            setSettings((current) => ({
-              ...current,
-              store: { ...current.store, legalName: value },
-            }))
-          }
-        />
-        <Field
-          keyboardType="number-pad"
-          placeholder="RUC"
-          value={settings.store.taxId}
-          onChangeText={(value) =>
-            setSettings((current) => ({
-              ...current,
-              store: { ...current.store, taxId: value },
-            }))
-          }
-        />
-        <Field
-          placeholder="Dirección"
-          value={settings.store.address}
-          onChangeText={(value) =>
-            setSettings((current) => ({
-              ...current,
-              store: { ...current.store, address: value },
-            }))
-          }
-        />
-        <Field
-          placeholder="Teléfono"
-          value={settings.store.phone}
-          onChangeText={(value) =>
-            setSettings((current) => ({
-              ...current,
-              store: { ...current.store, phone: value },
-            }))
-          }
-        />
-        <Field
-          placeholder="Horario"
-          value={settings.store.businessHours}
-          onChangeText={(value) =>
-            setSettings((current) => ({
-              ...current,
-              store: { ...current.store, businessHours: value },
-            }))
-          }
-        />
-        <Field
-          placeholder="Pie de comprobante"
-          value={settings.store.receiptFooter}
-          onChangeText={(value) =>
-            setSettings((current) => ({
-              ...current,
-              store: { ...current.store, receiptFooter: value },
-            }))
-          }
-        />
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => void saveStore()}
-          style={styles.primary}
-        >
-          <Text style={styles.primaryText}>Guardar tienda</Text>
-        </Pressable>
-      </View>
-      <SectionTitle
-        action={<Pill label={`${settings.stores.length}`} tone="neutral" />}
-      >
-        Sucursales visibles
-      </SectionTitle>
-      <View style={[sharedStyles.card, styles.card]}>
-        {settings.stores.map((store) => (
+      {!selectedUser ? (
+        <View style={[sharedStyles.card, styles.operatorNotice]}>
+          <MaterialCommunityIcons
+            name="account-key-outline"
+            size={22}
+            color={BrandColors.warning}
+          />
+          <View style={styles.operatorNoticeCopy}>
+            <Text style={styles.operatorNoticeTitle}>Falta tu operador</Text>
+            <Text style={styles.operatorNoticeText}>
+              Activa tu perfil con PIN en la pestaña Más para cambiar la
+              configuración.
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      <SectionTitle>Negocio</SectionTitle>
+      <View style={[sharedStyles.card, styles.navCard]}>
+        {navigationRows.map((row, index) => (
           <Pressable
-            accessibilityLabel={`Editar sucursal ${store.name}`}
+            accessibilityLabel={`Abrir ${row.title}`}
             accessibilityRole="button"
-            key={store.id}
-            onPress={() => setBranch({ ...store })}
-            style={styles.row}
+            key={row.title}
+            onPress={() => {
+              setBranch(emptyBranch);
+              setBranchFormVisible(false);
+              setSheet(row.sheet);
+            }}
+            style={[
+              styles.navRow,
+              index > 0 && styles.borderTop,
+            ]}
           >
+            <View style={styles.navIcon}>
+              <MaterialCommunityIcons
+                name={row.icon as keyof typeof MaterialCommunityIcons.glyphMap}
+                size={20}
+                color={BrandColors.green}
+              />
+            </View>
             <View style={styles.fill}>
-              <Text style={styles.title}>{store.name}</Text>
-              <Text style={styles.meta}>
-                {store.code} · {store.address || "Sin dirección"}
+              <Text
+                maxFontSizeMultiplier={1.3}
+                numberOfLines={1}
+                style={styles.title}
+              >
+                {row.title}
+              </Text>
+              <Text numberOfLines={1} style={styles.meta}>
+                {row.subtitle}
               </Text>
             </View>
-            <Pill label={branchStatusLabels[store.status]} tone="neutral" />
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={18}
+              color={BrandColors.muted}
+            />
           </Pressable>
         ))}
-        <Text style={styles.help}>
-          Toca una sucursal para editarla. La selección operativa requiere
-          aprovisionar y preparar sus datos antes de cambiar el dispositivo.
-        </Text>
       </View>
-      <SectionTitle>
-        {branch.id ? "Editar sucursal" : "Nueva sucursal"}
-      </SectionTitle>
-      <View style={[sharedStyles.card, styles.card]}>
-        <Field
-          autoCapitalize="characters"
-          maxLength={32}
-          placeholder="Código (ej. SANTA_ANITA_2)"
-          value={branch.code}
-          onChangeText={(code) =>
-            setBranch((current) => ({ ...current, code }))
-          }
-        />
-        <Field
-          placeholder="Nombre"
-          value={branch.name}
-          onChangeText={(name) =>
-            setBranch((current) => ({ ...current, name }))
-          }
-        />
-        <Field
-          placeholder="Dirección"
-          value={branch.address ?? ""}
-          onChangeText={(address) =>
-            setBranch((current) => ({ ...current, address }))
-          }
-        />
-        <Field
-          autoCapitalize="none"
-          placeholder="Zona horaria"
-          value={branch.timezone}
-          onChangeText={(timezone) =>
-            setBranch((current) => ({ ...current, timezone }))
-          }
-        />
-        <View style={styles.choices}>
-          {(["active", "suspended", "archived"] as const).map((status) => (
-            <Pressable
-              accessibilityRole="radio"
-              accessibilityState={{ checked: branch.status === status }}
-              key={status}
-              onPress={() => setBranch((current) => ({ ...current, status }))}
-              style={[
-                styles.choice,
-                branch.status === status && styles.choiceActive,
-              ]}
-            >
-              <Text style={styles.choiceText}>
-                {branchStatusLabels[status]}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => void saveBranch()}
-          style={styles.primary}
-        >
-          <Text style={styles.primaryText}>
-            {branch.id ? "Actualizar sucursal" : "Crear sucursal"}
-          </Text>
-        </Pressable>
-        {branch.id ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setBranch(emptyBranch)}
-            style={styles.secondary}
-          >
-            <Text style={styles.secondaryText}>Cancelar edición</Text>
-          </Pressable>
-        ) : null}
-      </View>
-      <SectionTitle>Facturación electrónica / SUNAT</SectionTitle>
-      <View style={[sharedStyles.card, styles.card]}>
-        <Field
-          placeholder="Proveedor (ej. nubefact)"
-          value={settings.fiscal.provider}
-          onChangeText={(value) =>
-            setSettings((current) => ({
-              ...current,
-              fiscal: { ...current.fiscal, provider: value },
-            }))
-          }
-        />
-        <View style={styles.choices}>
-          {(["disabled", "demo", "production"] as const).map((environment) => (
-            <Pressable
-              accessibilityRole="radio"
-              accessibilityState={{
-                checked: settings.fiscal.environment === environment,
-              }}
-              key={environment}
-              onPress={() =>
-                setSettings((current) => ({
-                  ...current,
-                  fiscal: {
-                    ...current.fiscal,
-                    environment,
-                    isEnabled: environment !== "disabled",
-                  },
-                }))
-              }
-              style={[
-                styles.choice,
-                settings.fiscal.environment === environment &&
-                  styles.choiceActive,
-              ]}
-            >
-              <Text style={styles.choiceText}>
-                {fiscalEnvironmentLabels[environment]}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <Field
-          placeholder="Serie facturas (F001)"
-          value={settings.fiscal.invoiceSeries}
-          onChangeText={(value) =>
-            setSettings((current) => ({
-              ...current,
-              fiscal: { ...current.fiscal, invoiceSeries: value },
-            }))
-          }
-        />
-        <Field
-          placeholder="Serie boletas (B001)"
-          value={settings.fiscal.receiptSeries}
-          onChangeText={(value) =>
-            setSettings((current) => ({
-              ...current,
-              fiscal: { ...current.fiscal, receiptSeries: value },
-            }))
-          }
-        />
-        <Text style={styles.help}>
-          Las credenciales SUNAT/proveedor nunca se ingresan aquí: se configuran
-          como secreto del backend productivo.
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => void saveFiscal()}
-          style={styles.primary}
-        >
-          <Text style={styles.primaryText}>Guardar configuración fiscal</Text>
-        </Pressable>
-      </View>
+
       <SectionTitle>Preferencias de la aplicación</SectionTitle>
-      <View style={[sharedStyles.card, styles.card]}>
+      <View style={[sharedStyles.card, styles.card, styles.rowShadow]}>
         <Text style={styles.title}>Densidad visual</Text>
         <View style={styles.choices}>
           {(["comfortable", "compact"] as const).map((density) => (
@@ -442,7 +320,7 @@ export default function SettingsScreen() {
             void applyPreference({ ...preferences, hapticsEnabled })
           }
         />
-        <View style={styles.row}>
+        <View style={[styles.row, styles.noBorder]}>
           <View style={styles.fill}>
             <Text style={styles.title}>Idioma</Text>
             <Text style={styles.meta}>Español (Perú)</Text>
@@ -454,7 +332,8 @@ export default function SettingsScreen() {
           dispositivo.
         </Text>
       </View>
-      <View style={[sharedStyles.card, styles.card]}>
+
+      <View style={[sharedStyles.card, styles.card, styles.rowShadow]}>
         <Text style={styles.title}>Acerca de Cogana</Text>
         <Text style={styles.meta}>
           Versión {Constants.expoConfig?.version ?? "1.0.0"} · Expo SDK 54
@@ -463,7 +342,390 @@ export default function SettingsScreen() {
           POS conectado para Mercado Cogana · Santa Anita, Lima.
         </Text>
       </View>
+
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (!isSaving) setSheet(null);
+        }}
+        placement="bottom"
+        visible={sheet === "store"}
+      >
+        <SheetHeader
+          title="Datos de tienda"
+          subtitle="Se usan en comprobantes y la tienda online"
+          onClose={() => setSheet(null)}
+        />
+        <ScrollView
+          contentContainerStyle={styles.sheetBody}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          style={styles.sheetScroll}
+        >
+          <Field
+            placeholder="Razón social"
+            value={settings.store.legalName}
+            onChangeText={(value) =>
+              setSettings((current) => ({
+                ...current,
+                store: { ...current.store, legalName: value },
+              }))
+            }
+          />
+          <Field
+            keyboardType="number-pad"
+            placeholder="RUC"
+            value={settings.store.taxId}
+            onChangeText={(value) =>
+              setSettings((current) => ({
+                ...current,
+                store: { ...current.store, taxId: value },
+              }))
+            }
+          />
+          <Field
+            placeholder="Dirección"
+            value={settings.store.address}
+            onChangeText={(value) =>
+              setSettings((current) => ({
+                ...current,
+                store: { ...current.store, address: value },
+              }))
+            }
+          />
+          <Field
+            keyboardType="phone-pad"
+            placeholder="Teléfono"
+            value={settings.store.phone}
+            onChangeText={(value) =>
+              setSettings((current) => ({
+                ...current,
+                store: { ...current.store, phone: value },
+              }))
+            }
+          />
+          <Field
+            placeholder="Horario"
+            value={settings.store.businessHours}
+            onChangeText={(value) =>
+              setSettings((current) => ({
+                ...current,
+                store: { ...current.store, businessHours: value },
+              }))
+            }
+          />
+          <Field
+            placeholder="Pie de comprobante"
+            value={settings.store.receiptFooter}
+            onChangeText={(value) =>
+              setSettings((current) => ({
+                ...current,
+                store: { ...current.store, receiptFooter: value },
+              }))
+            }
+          />
+        </ScrollView>
+        <ActionButton
+          label="Guardar tienda"
+          icon="content-save-outline"
+          loading={isSaving}
+          disabled={isSaving}
+          onPress={() => void saveStore()}
+        />
+      </ModalSurface>
+
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (!isSaving) setSheet(null);
+        }}
+        placement="bottom"
+        visible={sheet === "branches"}
+      >
+        <SheetHeader
+          title="Sucursales"
+          subtitle="Toca una sucursal para editarla"
+          onClose={() => setSheet(null)}
+        />
+        <ScrollView
+          contentContainerStyle={styles.sheetBody}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          style={styles.sheetScroll}
+        >
+          {settings.stores.map((store) => (
+            <Pressable
+              accessibilityLabel={`Editar sucursal ${store.name}`}
+              accessibilityRole="button"
+              key={store.id}
+              onPress={() => {
+                setBranch({ ...store });
+                setBranchFormVisible(true);
+              }}
+              style={styles.branchRow}
+            >
+              <View style={styles.fill}>
+                <Text maxFontSizeMultiplier={1.3} style={styles.title}>
+                  {store.name}
+                </Text>
+                <Text style={styles.meta}>
+                  {store.code} · {store.address || "Sin dirección"}
+                </Text>
+              </View>
+              <Pill
+                label={branchStatusLabels[store.status]}
+                tone={store.status === "active" ? "green" : "neutral"}
+              />
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={18}
+                color={BrandColors.muted}
+              />
+            </Pressable>
+          ))}
+          {!settings.stores.length ? (
+            <Text style={styles.help}>
+              Aún no hay sucursales. Crea la primera con su código y zona
+              horaria.
+            </Text>
+          ) : null}
+          {branchFormVisible ? (
+            <>
+              <View style={styles.formDivider} />
+              <Field
+                autoCapitalize="characters"
+                maxLength={32}
+                placeholder="Código (ej. SANTA_ANITA_2)"
+                value={branch.code}
+                onChangeText={(code) =>
+                  setBranch((current) => ({ ...current, code }))
+                }
+              />
+              <Field
+                placeholder="Nombre"
+                value={branch.name}
+                onChangeText={(name) =>
+                  setBranch((current) => ({ ...current, name }))
+                }
+              />
+              <Field
+                placeholder="Dirección"
+                value={branch.address ?? ""}
+                onChangeText={(address) =>
+                  setBranch((current) => ({ ...current, address }))
+                }
+              />
+              <Field
+                autoCapitalize="none"
+                placeholder="Zona horaria"
+                value={branch.timezone}
+                onChangeText={(timezone) =>
+                  setBranch((current) => ({ ...current, timezone }))
+                }
+              />
+              <View style={styles.choices}>
+                {(["active", "suspended", "archived"] as const).map(
+                  (status) => (
+                    <Pressable
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: branch.status === status }}
+                      key={status}
+                      onPress={() =>
+                        setBranch((current) => ({ ...current, status }))
+                      }
+                      style={[
+                        styles.choice,
+                        branch.status === status && styles.choiceActive,
+                      ]}
+                    >
+                      <Text style={styles.choiceText}>
+                        {branchStatusLabels[status]}
+                      </Text>
+                    </Pressable>
+                  ),
+                )}
+              </View>
+            </>
+          ) : (
+            <Pressable
+              accessibilityLabel="Nueva sucursal"
+              accessibilityRole="button"
+              onPress={() => {
+                setBranch(emptyBranch);
+                setBranchFormVisible(true);
+              }}
+              style={styles.newBranchButton}
+            >
+              <MaterialCommunityIcons
+                name="plus"
+                size={19}
+                color={BrandColors.greenDark}
+              />
+              <Text style={styles.newBranchText}>Nueva sucursal</Text>
+            </Pressable>
+          )}
+        </ScrollView>
+        {branchFormVisible ? (
+          <View style={styles.sheetFooter}>
+            <ActionButton
+              compact
+              disabled={isSaving}
+              label="Cerrar formulario"
+              onPress={() => {
+                setBranch(emptyBranch);
+                setBranchFormVisible(false);
+              }}
+              style={styles.footerButton}
+              tone="ghost"
+            />
+            <ActionButton
+              compact
+              disabled={!branch.code.trim() || !branch.name.trim() || isSaving}
+              label={branch.id ? "Actualizar" : "Crear sucursal"}
+              loading={isSaving}
+              onPress={() => void saveBranch()}
+              style={styles.saveFooterButton}
+            />
+          </View>
+        ) : null}
+      </ModalSurface>
+
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (!isSaving) setSheet(null);
+        }}
+        placement="bottom"
+        visible={sheet === "fiscal"}
+      >
+        <SheetHeader
+          title="Facturación electrónica"
+          subtitle="SUNAT y proveedor de comprobantes"
+          onClose={() => setSheet(null)}
+        />
+        <ScrollView
+          contentContainerStyle={styles.sheetBody}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          style={styles.sheetScroll}
+        >
+          <Field
+            placeholder="Proveedor (ej. nubefact)"
+            value={settings.fiscal.provider}
+            onChangeText={(value) =>
+              setSettings((current) => ({
+                ...current,
+                fiscal: { ...current.fiscal, provider: value },
+              }))
+            }
+          />
+          <View style={styles.choices}>
+            {(["disabled", "demo", "production"] as const).map((environment) => (
+              <Pressable
+                accessibilityRole="radio"
+                accessibilityState={{
+                  checked: settings.fiscal.environment === environment,
+                }}
+                key={environment}
+                onPress={() =>
+                  setSettings((current) => ({
+                    ...current,
+                    fiscal: {
+                      ...current.fiscal,
+                      environment,
+                      isEnabled: environment !== "disabled",
+                    },
+                  }))
+                }
+                style={[
+                  styles.choice,
+                  settings.fiscal.environment === environment &&
+                    styles.choiceActive,
+                ]}
+              >
+                <Text style={styles.choiceText}>
+                  {fiscalEnvironmentLabels[environment]}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <Field
+            placeholder="Serie facturas (F001)"
+            value={settings.fiscal.invoiceSeries}
+            onChangeText={(value) =>
+              setSettings((current) => ({
+                ...current,
+                fiscal: { ...current.fiscal, invoiceSeries: value },
+              }))
+            }
+          />
+          <Field
+            placeholder="Serie boletas (B001)"
+            value={settings.fiscal.receiptSeries}
+            onChangeText={(value) =>
+              setSettings((current) => ({
+                ...current,
+                fiscal: { ...current.fiscal, receiptSeries: value },
+              }))
+            }
+          />
+          <Text style={styles.help}>
+            Las credenciales SUNAT/proveedor nunca se ingresan aquí: se
+            configuran como secreto del backend productivo.
+          </Text>
+        </ScrollView>
+        <ActionButton
+          label="Guardar configuración fiscal"
+          icon="content-save-outline"
+          loading={isSaving}
+          disabled={isSaving}
+          onPress={() => void saveFiscal()}
+        />
+      </ModalSurface>
     </AdminScreen>
+  );
+}
+
+function SheetHeader({
+  title,
+  subtitle,
+  onClose,
+}: {
+  title: string;
+  subtitle: string;
+  onClose: () => void;
+}) {
+  return (
+    <View style={styles.sheetHeader}>
+      <View style={styles.sheetHeaderCopy}>
+        <Text maxFontSizeMultiplier={1.3} style={styles.sheetTitle}>
+          {title}
+        </Text>
+        <Text style={styles.sheetMeta}>{subtitle}</Text>
+      </View>
+      <Pressable
+        accessibilityLabel="Cerrar"
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={onClose}
+        style={styles.sheetClose}
+      >
+        <MaterialCommunityIcons
+          name="close"
+          size={22}
+          color={BrandColors.muted}
+        />
+      </Pressable>
+    </View>
   );
 }
 
@@ -477,6 +739,7 @@ function Field(props: React.ComponentProps<typeof TextInput>) {
     />
   );
 }
+
 function PreferenceToggle({
   label,
   value,
@@ -501,38 +764,47 @@ function PreferenceToggle({
     </View>
   );
 }
+
 const styles = StyleSheet.create({
+  operatorNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  operatorNoticeCopy: { flex: 1 },
+  operatorNoticeTitle: { color: BrandColors.text, ...Typography.label },
+  operatorNoticeText: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  navCard: { paddingVertical: Spacing.xxs },
+  navRow: {
+    minHeight: 64,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  navIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  borderTop: { borderTopWidth: 1, borderTopColor: BrandColors.line },
+  rowShadow: { ...Elevation.ambientCard },
+  fill: { flex: 1 },
+  title: { color: BrandColors.text, ...Typography.label },
+  meta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  help: { color: BrandColors.muted, ...Typography.caption },
   card: { gap: Spacing.sm },
-  input: {
-    minHeight: ControlSize.default,
-    borderRadius: ComponentMetrics.inputRadius,
-    borderWidth: 1,
-    borderColor: BrandColors.line,
-    backgroundColor: BrandColors.white,
-    color: BrandColors.text,
-    paddingHorizontal: Spacing.sm,
-    ...Typography.body,
-  },
-  primary: {
-    minHeight: ControlSize.default,
-    borderRadius: Radius.md,
-    backgroundColor: BrandColors.green,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.lg,
-  },
-  primaryText: { color: BrandColors.white, ...Typography.label },
-  secondary: {
-    minHeight: ControlSize.default,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    borderColor: BrandColors.green,
-    backgroundColor: BrandColors.white,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.lg,
-  },
-  secondaryText: { color: BrandColors.greenDark, ...Typography.label },
   row: {
     minHeight: ControlSize.default,
     flexDirection: "row",
@@ -542,14 +814,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: BrandColors.line,
   },
-  fill: { flex: 1 },
-  title: { color: BrandColors.text, ...Typography.label },
-  meta: {
-    color: BrandColors.muted,
-    ...Typography.caption,
-    marginTop: Spacing.xxs,
-  },
-  help: { color: BrandColors.muted, ...Typography.caption },
+  noBorder: { borderBottomWidth: 0 },
   choices: { flexDirection: "row", gap: Spacing.xs },
   choice: {
     flex: 1,
@@ -570,5 +835,75 @@ const styles = StyleSheet.create({
     color: BrandColors.greenDark,
     ...Typography.caption,
     fontWeight: "700",
+  },
+  input: {
+    minHeight: ControlSize.default,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: BrandColors.line,
+    backgroundColor: BrandColors.white,
+    color: BrandColors.text,
+    paddingHorizontal: Spacing.sm,
+    ...Typography.body,
+  },
+  branchRow: {
+    minHeight: ControlSize.default,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
+  },
+  formDivider: {
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.line,
+    paddingTop: Spacing.xs,
+  },
+  newBranchButton: {
+    minHeight: ControlSize.default,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: BrandColors.green,
+    backgroundColor: BrandColors.white,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xs,
+  },
+  newBranchText: { color: BrandColors.greenDark, ...Typography.label },
+  sheet: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  sheetScroll: { flexShrink: 1 },
+  sheetBody: { gap: Spacing.sm, paddingBottom: Spacing.xs },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  sheetHeaderCopy: { flex: 1 },
+  sheetTitle: { color: BrandColors.text, ...Typography.h3 },
+  sheetMeta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  sheetClose: {
+    width: ControlSize.compact,
+    height: ControlSize.compact,
+    borderRadius: Radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetFooter: {
+    flexDirection: "row",
+    gap: Spacing.xs,
+  },
+  footerButton: { flex: 1 },
+  saveFooterButton: { flex: 1.6 },
+  pressed: {
+    opacity: Interaction.pressedOpacity,
+    transform: [{ scale: Interaction.pressedScale }],
   },
 });

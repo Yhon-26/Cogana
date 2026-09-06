@@ -7,7 +7,9 @@ import { OperatorSelector } from "@/components/operator-selector";
 import {
   BrandColors,
   ControlSize,
+  Elevation,
   Interaction,
+  Radius,
   Spacing,
   Typography,
 } from "@/constants/theme";
@@ -48,6 +50,8 @@ export default function MoreScreen() {
         );
   return (
     <AdminScreen title="Más" subtitle="Administración, diagnóstico y expansión">
+      {/* El selector de operadores vive aquí: con un solo perfil (dueño) es
+          invisible y con vendedores muestra la barra de cambio con PIN. */}
       <OperatorSelector />
       <View style={styles.grid}>
         {visibleModules.map(([title, icon, route]) => (
@@ -63,12 +67,16 @@ export default function MoreScreen() {
               pressed && styles.pressed,
             ]}
           >
-            <MaterialCommunityIcons
-              name={icon}
-              size={Typography.h2.fontSize}
-              color={BrandColors.greenDark}
-            />
-            <Text style={styles.title}>{title}</Text>
+            <View style={styles.icon}>
+              <MaterialCommunityIcons
+                name={icon}
+                size={22}
+                color={BrandColors.green}
+              />
+            </View>
+            <Text maxFontSizeMultiplier={1.3} style={styles.title}>
+              {title}
+            </Text>
           </Pressable>
         ))}
       </View>
@@ -85,14 +93,27 @@ const styles = StyleSheet.create({
     minWidth: 190,
     minHeight: ControlSize.default * 2 + Spacing.xs,
     justifyContent: "space-between",
+    gap: Spacing.sm,
     padding: Spacing.md,
+    ...Elevation.ambientCard,
   },
   cardMedium: { maxWidth: 252 },
+  icon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   title: {
     color: BrandColors.text,
     ...Typography.label,
     minWidth: 0,
     flexShrink: 1,
   },
-  pressed: { opacity: Interaction.pressedOpacity },
+  pressed: {
+    opacity: Interaction.pressedOpacity,
+    transform: [{ scale: Interaction.pressedScale }],
+  },
 });

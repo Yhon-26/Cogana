@@ -1,4 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 import { StatusBar } from "expo-status-bar";
 import { router, type Href, usePathname } from "expo-router";
 import type { PropsWithChildren, ReactNode } from "react";
@@ -15,7 +16,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   BrandColors,
-  ComponentMetrics,
   ControlSize,
   Elevation,
   Interaction,
@@ -159,7 +159,7 @@ export function OnlineBottomNav({ expanded = false }: { expanded?: boolean }) {
   return (
     <View
       accessibilityRole="tablist"
-      style={[styles.nav, expanded && styles.navExpanded]}
+      style={[styles.nav, expanded ? styles.navExpanded : styles.navFloating]}
     >
       <Nav
         expanded={expanded}
@@ -204,22 +204,35 @@ function Nav({
       accessibilityLabel={label}
       accessibilityRole="tab"
       accessibilityState={{ selected }}
-      onPress={() => router.navigate(route as Href)}
+      onPress={() => {
+        void Haptics.selectionAsync().catch(() => {});
+        router.navigate(route as Href);
+      }}
       style={({ pressed }) => [
         styles.navItem,
-        expanded && styles.navItemExpanded,
-        selected && styles.navItemSelected,
+        expanded ? styles.navItemExpanded : styles.navItemFloating,
+        selected && (expanded ? styles.navItemSelected : styles.navItemActive),
         pressed && styles.pressed,
       ]}
     >
       <MaterialCommunityIcons
         name={icon}
         size={22}
-        color={selected ? BrandColors.greenDark : BrandColors.muted}
+        color={
+          expanded
+            ? selected
+              ? BrandColors.greenDark
+              : BrandColors.muted
+            : selected
+              ? BrandColors.ink
+              : BrandColors.greenMid
+        }
       />
-      <Text style={[styles.navText, selected && styles.navTextSelected]}>
-        {label}
-      </Text>
+      {expanded ? (
+        <Text style={[styles.navText, selected && styles.navTextSelected]}>
+          {label}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
@@ -322,15 +335,20 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
   },
   bottomSafe: {
-    backgroundColor: BrandColors.white,
-    borderTopWidth: 1,
-    borderTopColor: BrandColors.line,
-  },
-  nav: {
-    flexDirection: "row",
-    backgroundColor: BrandColors.white,
-    paddingHorizontal: Spacing.sm,
+    backgroundColor: "transparent",
+    paddingHorizontal: Spacing.xl,
     paddingTop: Spacing.xs,
+  },
+  nav: { flexDirection: "row" },
+  navFloating: {
+    alignSelf: "center",
+    alignItems: "center",
+    backgroundColor: BrandColors.ink,
+    borderRadius: Radius.round,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.xxs,
+    gap: Spacing.xxs,
+    ...Elevation.tabUpward,
   },
   railSafe: {
     width: Layout.navigationRailWidth,
@@ -347,14 +365,16 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
   },
   navItem: {
-    minHeight: ComponentMetrics.navigationItemHeight,
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.xxs,
-    paddingVertical: Spacing.xxs,
-    borderRadius: ComponentMetrics.navigationItemRadius,
   },
+  navItemFloating: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.round,
+  },
+  navItemActive: { backgroundColor: BrandColors.gold },
   navItemExpanded: {
     flex: 0,
     width: "100%",

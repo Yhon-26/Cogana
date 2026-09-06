@@ -16,7 +16,6 @@ import {
   SectionTitle,
   sharedStyles,
 } from "@/components/admin-ui";
-import { OperatorSelector } from "@/components/operator-selector";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   BrandColors,
@@ -635,7 +634,7 @@ export default function SaleScreen() {
           <View style={styles.stickySale}>
             <View style={styles.stickySaleCopy}>
               <Text style={styles.stickySaleLabel}>{cart.length} ítem(s)</Text>
-              <Text style={styles.stickySaleTotal}>
+              <Text maxFontSizeMultiplier={1.3} style={styles.stickySaleTotal}>
                 {formatMoney(cartTotalCents)}
               </Text>
             </View>
@@ -650,9 +649,6 @@ export default function SaleScreen() {
         ) : undefined
       }
     >
-      <SectionTitle>Usuario de la operación</SectionTitle>
-      <OperatorSelector />
-
       {!session ? (
         <View style={[sharedStyles.card, styles.cashWarning]}>
           <MaterialCommunityIcons
@@ -756,7 +752,7 @@ export default function SaleScreen() {
                 />
               </View>
               <Text
-                numberOfLines={2}
+                numberOfLines={1}
                 style={[
                   styles.productName,
                   selected && styles.productNameSelected,
@@ -946,7 +942,7 @@ export default function SaleScreen() {
           <View style={styles.resultDivider} />
           <View style={styles.resultRight}>
             <Text style={styles.resultLabel}>Subtotal real</Text>
-            <Text style={styles.totalValue}>
+            <Text maxFontSizeMultiplier={1.3} style={styles.totalValue}>
               {formatMoney(calculation.totalCents)}
             </Text>
           </View>
@@ -1018,7 +1014,7 @@ export default function SaleScreen() {
             ))}
             <View style={styles.cartTotalRow}>
               <Text style={styles.cartTotalLabel}>TOTAL</Text>
-              <Text style={styles.cartTotal}>
+              <Text maxFontSizeMultiplier={1.3} style={styles.cartTotal}>
                 {formatMoney(cartTotalCents)}
               </Text>
             </View>
@@ -1172,11 +1168,11 @@ export default function SaleScreen() {
                 </View>
                 <View style={styles.changeRow}>
                   <Text style={styles.resultLabel}>Vuelto</Text>
-                  <Text style={styles.changeValue}>
-                    {payment.changeCents === null
-                      ? "—"
-                      : formatMoney(payment.changeCents)}
-                  </Text>
+              <Text maxFontSizeMultiplier={1.3} style={styles.changeValue}>
+                {payment.changeCents === null
+                  ? "—"
+                  : formatMoney(payment.changeCents)}
+              </Text>
                 </View>
               </>
             ) : (
@@ -1388,21 +1384,21 @@ const styles = StyleSheet.create({
   },
   productList: { gap: Spacing.sm, paddingRight: Spacing.xs },
   productCard: {
-    width: 148,
-    minHeight: 155,
-    borderRadius: Radius.lg,
+    width: 126,
+    minHeight: 104,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: BrandColors.line,
     backgroundColor: BrandColors.white,
-    padding: Spacing.sm,
+    padding: Spacing.xs,
   },
   productCardSelected: {
     backgroundColor: BrandColors.greenDark,
     borderColor: BrandColors.gold,
   },
   productIcon: {
-    width: ControlSize.compact,
-    height: ControlSize.compact,
+    width: 32,
+    height: 32,
     borderRadius: Radius.sm,
     backgroundColor: BrandColors.greenLight,
     alignItems: "center",
@@ -1411,39 +1407,42 @@ const styles = StyleSheet.create({
   productIconSelected: { backgroundColor: BrandColors.green },
   productName: {
     color: BrandColors.text,
-    ...Typography.label,
-    marginTop: Spacing.sm,
+    ...Typography.caption,
+    fontWeight: "700",
+    marginTop: Spacing.xs,
   },
   productNameSelected: { color: BrandColors.white },
   productPrice: {
     color: BrandColors.greenDark,
-    ...Typography.label,
-    marginTop: Spacing.xs,
+    ...Typography.caption,
+    marginTop: 2,
   },
   productPriceSelected: { color: BrandColors.gold },
   productStock: {
     color: BrandColors.muted,
-    ...Typography.caption,
-    marginTop: Spacing.xxs,
+    ...Typography.overline,
+    letterSpacing: 0,
+    marginTop: 2,
   },
   productStockSelected: { color: BrandColors.greenMid },
   modeRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs },
   modeButton: {
     flexGrow: 1,
     flexShrink: 1,
-    flexBasis: 220,
-    minWidth: 190,
-    minHeight: 68,
+    flexBasis: 150,
+    minWidth: 120,
+    minHeight: ControlSize.default,
     backgroundColor: BrandColors.white,
     borderColor: BrandColors.line,
     borderWidth: 1,
     borderRadius: Radius.md,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.xxs,
     paddingHorizontal: Spacing.xs,
   },
-  modeButtonMedium: { maxWidth: 252 },
+  modeButtonMedium: { maxWidth: 200 },
   modeButtonSelected: {
     borderColor: BrandColors.green,
     backgroundColor: BrandColors.greenLight,
@@ -1583,9 +1582,9 @@ const styles = StyleSheet.create({
   paymentButton: {
     flexGrow: 1,
     flexShrink: 1,
-    flexBasis: 220,
-    minWidth: 190,
-    minHeight: ControlSize.large,
+    flexBasis: "47%",
+    minWidth: 130,
+    minHeight: ControlSize.default,
     borderWidth: 1,
     borderColor: BrandColors.line,
     backgroundColor: BrandColors.white,
@@ -1596,7 +1595,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     paddingHorizontal: Spacing.xs,
   },
-  paymentButtonMedium: { maxWidth: 252 },
+  paymentButtonMedium: { flexBasis: "23%" },
   paymentButtonSelected: {
     borderColor: BrandColors.green,
     backgroundColor: BrandColors.greenLight,

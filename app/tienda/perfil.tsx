@@ -1,7 +1,9 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
+import * as ImagePicker from "expo-image-picker";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
 
 import { OnlineScreen } from "@/components/online-shell";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
@@ -16,6 +18,7 @@ import {
   Typography,
 } from "@/constants/theme";
 import { useCustomerAuth } from "@/context/customer-auth-context";
+import { getSupabaseClient } from "@/auth/supabase-client";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import type {
   OnlinePreferences,
@@ -41,7 +44,17 @@ function initialsFromName(name: string | undefined) {
 }
 
 export default function CustomerProfileScreen() {
-  const { account, signOut, updatePassword } = useCustomerAuth();
+  const {
+    account,
+    signOut,
+    changePassword,
+    updateAvatarUrl,
+  } = useCustomerAuth();
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [addresses, setAddresses] = useState<SavedCustomerAddress[]>([]);
   const [preferences, setPreferences] = useState<OnlinePreferences | null>(
     null,
@@ -53,7 +66,6 @@ export default function CustomerProfileScreen() {
   const [address, setAddress] = useState("");
   const [district, setDistrict] = useState("");
   const [instructions, setInstructions] = useState("");
-  const [password, setPassword] = useState("");
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
@@ -110,22 +122,6 @@ export default function CustomerProfileScreen() {
     }
   };
 
-  const changePassword = async () => {
-    try {
-      await updatePassword(password);
-      setPassword("");
-      Alert.alert(
-        "Contraseña actualizada",
-        "Tu nueva contraseña ya está activa.",
-      );
-    } catch (error) {
-      Alert.alert(
-        "No se pudo actualizar",
-        getUserFacingErrorMessage(error, "Intenta nuevamente."),
-      );
-    }
-  };
-
   const savePreferences = async (next: {
     orderNotifications: boolean;
     promotionNotifications: boolean;
@@ -161,6 +157,93 @@ export default function CustomerProfileScreen() {
   const toggleSection = (key: SectionKey) =>
     setOpenSection((current) => (current === key ? null : key));
 
+  const pickPhoto = async (mode: "camera" | "gallery") => {
+    if (!account || isUploadingPhoto) return;
+    const options = {
+      mediaTypes: ["images"] as ["images"],
+      allowsEditing: true,
+      aspect: [1, 1] as [number, number],
+      quality: 0.8,
+    };
+    const result =
+      mode === "camera"
+        ? await ImagePicker.launchCameraAsync(options)
+        : await ImagePicker.launchImageLibraryAsync(options);
+    if (result.canceled || !result.assets[0]) return;
+    const client = getSupabaseClient();
+    if (!client) {
+      Alert.alert(
+        "Sin conexión al servidor",
+        "No se pudo subir la foto. Intenta nuevamente.",
+      );
+      return;
+    }
+    setIsUploadingPhoto(true);
+    try {
+      const asset = result.assets[0];
+      const file = await fetch(asset.uri);
+      const bytes = await file.arrayBuffer();
+      // La ruta incluye el momento de subida: cada foto cambia de URL y
+      // la app la recarga sin conflictos de caché.
+      const path = `${account.authUserId}/profile-${Date.now()}.jpg`;
+      const { error } = await client.storage.from("avatars").upload(path, bytes, {
+        contentType: asset.mimeType ?? "image/jpeg",
+        upsert: true,
+      });
+      if (error) throw error;
+      const { data } = client.storage.from("avatars").getPublicUrl(path);
+      await updateAvatarUrl(data.publicUrl);
+    } catch (error) {
+      Alert.alert(
+        "No se pudo actualizar la foto",
+        getUserFacingErrorMessage(error, "Intenta nuevamente."),
+      );
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  const showPhotoOptions = () => {
+    if (isUploadingPhoto) return;
+    Alert.alert("Foto de perfil", undefined, [
+      { text: "Tomar foto", onPress: () => void pickPhoto("camera") },
+      { text: "Elegir de la galería", onPress: () => void pickPhoto("gallery") },
+      { text: "Cancelar", style: "cancel" },
+    ]);
+  };
+
+  const passwordsMismatch =
+    confirmPassword.length > 0 && newPassword !== confirmPassword;
+  const canChangePassword =
+    Boolean(currentPassword) &&
+    newPassword.length >= 8 &&
+    newPassword === confirmPassword &&
+    !isChangingPassword;
+
+  const submitPasswordChange = async () => {
+    if (!canChangePassword) return;
+    setIsChangingPassword(true);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      Alert.alert(
+        "Contraseña actualizada",
+        "Tu nueva contraseña ya está activa.",
+      );
+    } catch (error) {
+      Alert.alert(
+        "No se pudo actualizar",
+        error instanceof Error
+          ? error.message
+          : "Intenta nuevamente.",
+      );
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
   return (
     <OnlineScreen
       title="Mi perfil"
@@ -168,11 +251,37 @@ export default function CustomerProfileScreen() {
       showBottomNav
     >
       <View style={styles.profileHead}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarInitials}>
-            {initialsFromName(account?.name)}
-          </Text>
-        </View>
+        <Pressable
+          accessibilityLabel="Cambiar foto de perfil"
+          accessibilityRole="button"
+          accessibilityState={{ busy: isUploadingPhoto }}
+          onPress={showPhotoOptions}
+          style={({ pressed }) => [
+            styles.avatarPress,
+            pressed && styles.pressed,
+          ]}
+        >
+          <View style={styles.avatar}>
+            {account?.avatarUrl ? (
+              <Image
+                contentFit="cover"
+                source={{ uri: account.avatarUrl }}
+                style={styles.avatarImage}
+              />
+            ) : (
+              <Text style={styles.avatarInitials}>
+                {initialsFromName(account?.name)}
+              </Text>
+            )}
+          </View>
+          <View style={styles.avatarBadge}>
+            <MaterialCommunityIcons
+              name={isUploadingPhoto ? "loading" : "camera"}
+              size={14}
+              color={BrandColors.white}
+            />
+          </View>
+        </Pressable>
         <Text maxFontSizeMultiplier={1.3} style={styles.name}>
           {account?.name}
         </Text>
@@ -312,28 +421,54 @@ export default function CustomerProfileScreen() {
         {openSection === "security" ? (
           <View style={styles.expanded}>
             <Field
+              label="Contraseña actual"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              value={currentPassword}
+              onChangeText={setCurrentPassword}
+            />
+            <Field
               label="Nueva contraseña"
               autoCapitalize="none"
               autoCorrect={false}
               secureTextEntry
-              value={password}
-              onChangeText={setPassword}
+              value={newPassword}
+              onChangeText={setNewPassword}
             />
+            {newPassword.length > 0 && newPassword.length < 8 ? (
+              <Text style={styles.fieldHelper}>Mínimo 8 caracteres.</Text>
+            ) : null}
+            <Field
+              label="Confirmar nueva contraseña"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+            />
+            {passwordsMismatch ? (
+              <Text style={styles.fieldError}>
+                Las contraseñas no coinciden.
+              </Text>
+            ) : null}
             <Pressable
               accessibilityRole="button"
-              accessibilityState={{ disabled: password.length < 8 }}
-              disabled={password.length < 8}
-              onPress={() => void changePassword()}
+              accessibilityState={{ disabled: !canChangePassword }}
+              disabled={!canChangePassword}
+              onPress={() => void submitPasswordChange()}
               style={({ pressed }) => [
                 styles.secondaryButton,
-                password.length < 8 && styles.disabled,
-                pressed && password.length >= 8 && styles.pressed,
+                !canChangePassword && styles.disabled,
+                pressed && canChangePassword && styles.pressed,
               ]}
             >
               <Text style={styles.secondaryText}>
-                {password.length < 8 && password.length > 0
-                  ? "Minimo 8 caracteres"
-                  : "Cambiar contraseña"}
+                {isChangingPassword
+                  ? "Actualizando…"
+                  : passwordsMismatch
+                    ? "Las contraseñas no coinciden"
+                    : "Cambiar contraseña"}
               </Text>
             </Pressable>
           </View>
@@ -541,6 +676,7 @@ const styles = StyleSheet.create({
     gap: Spacing.xxs,
     paddingVertical: Spacing.md,
   },
+  avatarPress: { alignSelf: "center" },
   avatar: {
     width: 84,
     height: 84,
@@ -550,7 +686,22 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.white,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
     ...Elevation.ambientCard,
+  },
+  avatarImage: { width: "100%", height: "100%" },
+  avatarBadge: {
+    position: "absolute",
+    right: 2,
+    bottom: 2,
+    width: 26,
+    height: 26,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.green,
+    borderWidth: 2,
+    borderColor: BrandColors.cream,
+    alignItems: "center",
+    justifyContent: "center",
   },
   avatarInitials: { color: BrandColors.greenDark, ...Typography.h1 },
   name: { color: BrandColors.text, ...Typography.h3, marginTop: Spacing.xxs },
@@ -620,6 +771,8 @@ const styles = StyleSheet.create({
   form: { gap: Spacing.xs },
   field: { gap: Spacing.xxs },
   fieldLabel: { color: BrandColors.text, ...Typography.label },
+  fieldHelper: { color: BrandColors.muted, ...Typography.caption },
+  fieldError: { color: BrandColors.danger, ...Typography.caption },
   input: {
     minHeight: ControlSize.default,
     borderRadius: ComponentMetrics.inputRadius,

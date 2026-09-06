@@ -48,6 +48,7 @@ export type CustomerAccount = {
   name: string;
   phone: string;
   email: string | null;
+  avatarUrl: string | null;
 };
 
 type CustomerAuthContextValue = {
@@ -60,7 +61,8 @@ type CustomerAuthContextValue = {
   signUp: (input: CustomerSignUpInput) => Promise<void>;
   signOut: () => Promise<void>;
   continueToSignIn: () => void;
-  updatePassword: (password: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  updateAvatarUrl: (avatarUrl: string | null) => Promise<void>;
   sendPasswordReset: (email: string, redirectTo: string) => Promise<void>;
   getAccessToken: () => Promise<string | null>;
 };
@@ -113,6 +115,10 @@ async function claimCustomerAccount(
     name: row.customer_name,
     phone: row.customer_phone,
     email: typeof row.customer_email === 'string' ? row.customer_email : null,
+    avatarUrl:
+      typeof metadata.avatar_url === 'string' && metadata.avatar_url
+        ? metadata.avatar_url
+        : null,
   };
 }
 
@@ -316,16 +322,51 @@ export function CustomerAuthProvider({ children }: PropsWithChildren) {
     setState(client ? 'anonymous' : 'unconfigured');
   }, [clearSession, client]);
 
-  const updatePassword = useCallback(
-    async (password: string) => {
-      if (!client || !account) throw new Error('Inicia sesión para cambiar tu contraseña.');
-      if (password.length < 8) {
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      if (!client || !account)
+        throw new Error('Inicia sesión para cambiar tu contraseña.');
+      if (newPassword.length < 8) {
         throw new Error('La contraseña debe tener al menos 8 caracteres.');
       }
-      const { error } = await client.auth.updateUser({ password });
+      if (!account.email) {
+        throw new Error('Tu cuenta no tiene un correo para verificar.');
+      }
+      // Supabase no valida la contraseña actual en updateUser: la verificamos
+      // autenticando con ella antes de aplicar el cambio.
+      const { error: verifyError } = await client.auth.signInWithPassword({
+        email: account.email,
+        password: currentPassword,
+      });
+      if (verifyError) {
+        throw new Error('La contraseña actual no es correcta.');
+      }
+      const { error } = await client.auth.updateUser({ password: newPassword });
       if (error) throw new Error(getCustomerAuthErrorMessage(error));
     },
-    [account, client]
+    [account, client],
+  );
+
+  const updateAvatarUrl = useCallback(
+    async (avatarUrl: string | null) => {
+      if (!client || !account)
+        throw new Error('Inicia sesión para actualizar tu foto.');
+      const { data, error } = await client.auth.updateUser({
+        data: { avatar_url: avatarUrl },
+      });
+      if (error) throw new Error(getCustomerAuthErrorMessage(error));
+      const metadata = data?.user?.user_metadata as
+        | Record<string, unknown>
+        | undefined;
+      const nextUrl =
+        typeof metadata?.avatar_url === 'string' && metadata.avatar_url
+          ? metadata.avatar_url
+          : avatarUrl;
+      setAccount((current) =>
+        current ? { ...current, avatarUrl: nextUrl } : current,
+      );
+    },
+    [account, client],
   );
 
   const sendPasswordReset = useCallback(
@@ -377,12 +418,14 @@ export function CustomerAuthProvider({ children }: PropsWithChildren) {
       signUp,
       signOut,
       continueToSignIn,
-      updatePassword,
+      changePassword,
+      updateAvatarUrl,
       sendPasswordReset,
       getAccessToken,
     }),
     [
       account,
+      changePassword,
       continueToSignIn,
       getAccessToken,
       message,
@@ -391,7 +434,7 @@ export function CustomerAuthProvider({ children }: PropsWithChildren) {
       signUp,
       sendPasswordReset,
       state,
-      updatePassword,
+      updateAvatarUrl,
       verificationEmail,
     ]
   );

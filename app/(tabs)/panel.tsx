@@ -230,6 +230,8 @@ export default function InternalDashboardScreen() {
   const [voidTarget, setVoidTarget] = useState<RecentSaleRecord | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [isVoiding, setIsVoiding] = useState(false);
+  const [movementOpen, setMovementOpen] = useState(false);
+  const [closeOpen, setCloseOpen] = useState(false);
   const [rolePermissions, setRolePermissions] = useState<RolePermission[]>([]);
   useFocusEffect(
     useCallback(() => {
@@ -322,7 +324,7 @@ export default function InternalDashboardScreen() {
       });
       setMovementAmount("");
       setMovementReason("");
-    });
+    }).then(() => setMovementOpen(false));
   };
 
   const handleClose = () => {
@@ -346,6 +348,7 @@ export default function InternalDashboardScreen() {
                 countedCashCents: countedCents,
               });
               setCountedAmount("");
+              setCloseOpen(false);
               Alert.alert(
                 "Caja cerrada",
                 `Diferencia: ${formatMoney(closed.differenceCents ?? 0)}`,
@@ -459,19 +462,27 @@ export default function InternalDashboardScreen() {
         </View>
       </Pressable>
 
-      <SectionTitle>Usuario de la operación</SectionTitle>
-      <OperatorSelector />
-      <View style={[sharedStyles.card, styles.syncCard]}>
-        <View style={styles.syncCopy}>
-          <Text style={styles.syncTitle}>Sincronización Supabase</Text>
-          <Text style={styles.syncDetail}>
-            {authState === "authenticated"
+      <View style={[sharedStyles.card, styles.syncSlim]}>
+        <MaterialCommunityIcons
+          name={
+            isSyncing
+              ? "cloud-sync-outline"
+              : authState === "authenticated"
+                ? "cloud-check-outline"
+                : "cloud-off-outline"
+          }
+          size={19}
+          color={authState === "authenticated" ? BrandColors.green : BrandColors.warning}
+        />
+        <Text numberOfLines={1} style={styles.syncDetail}>
+          {isSyncing
+            ? "Sincronizando…"
+            : authState === "authenticated"
               ? lastResult
                 ? `${lastResult.pushed} enviadas · ${lastResult.pulled} recibidas`
-                : "Sesión individual lista para sincronizar."
-              : "Desbloquea y vincula la cuenta individual del operador."}
-          </Text>
-        </View>
+                : "Sesión lista para sincronizar."
+              : "Vincula la cuenta del operador para sincronizar."}
+        </Text>
         <Pressable
           accessibilityLabel="Sincronizar datos con Supabase"
           accessibilityRole="button"
@@ -490,46 +501,34 @@ export default function InternalDashboardScreen() {
             isSyncing
           }
           onPress={() => void handleSync()}
-          style={[
-            styles.syncButton,
+          style={({ pressed }) => [
+            styles.syncChip,
             (authState !== "authenticated" ||
               !selectedUser ||
               !deviceId ||
               isSyncing) &&
               styles.syncButtonDisabled,
+            pressed && styles.actionPressed,
           ]}
         >
-          <MaterialCommunityIcons
-            name={isSyncing ? "cloud-sync-outline" : "cloud-upload-outline"}
-            size={17}
-            color={BrandColors.white}
-          />
-          <Text style={styles.syncButtonText}>
-            {isSyncing ? "Sincronizando…" : "Sincronizar"}
+          <Text style={styles.syncChipText}>
+            {isSyncing ? "…" : "Sincronizar"}
           </Text>
         </Pressable>
       </View>
 
-      <View style={[sharedStyles.card, sharedStyles.shadow, styles.salesCard]}>
-        <View>
-          <Text style={styles.salesLabel}>VENTAS DEL TURNO</Text>
-          <Text style={styles.salesAmount}>
+      <View style={styles.metricsRow}>
+        <View
+          style={[sharedStyles.card, styles.metricCard, styles.metricCardDark]}
+        >
+          <Text style={styles.metricLabelDark}>VENTAS DEL TURNO</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.metricValueDark}>
             {formatMoney(summary?.totalSalesCents ?? 0)}
           </Text>
-          <Text style={styles.salesCount}>
-            {summary?.saleCount ?? 0} ventas persistidas
+          <Text style={styles.metricLabelDark}>
+            {summary?.saleCount ?? 0} ventas
           </Text>
         </View>
-        <View style={styles.trendIcon}>
-          <MaterialCommunityIcons
-            name="cash-register"
-            size={27}
-            color={BrandColors.gold}
-          />
-        </View>
-      </View>
-
-      <View style={styles.metricsRow}>
         <View
           style={[
             sharedStyles.card,
@@ -539,10 +538,10 @@ export default function InternalDashboardScreen() {
         >
           <MaterialCommunityIcons
             name="cash"
-            size={21}
+            size={19}
             color={BrandColors.green}
           />
-          <Text style={styles.metricValue}>
+          <Text maxFontSizeMultiplier={1.3} style={styles.metricValue}>
             {formatMoney(summary?.expectedCashCents ?? 0)}
           </Text>
           <Text style={styles.metricLabel}>Efectivo esperado</Text>
@@ -550,19 +549,22 @@ export default function InternalDashboardScreen() {
         <Pressable
           accessibilityLabel={`${lowStock} productos con stock por reponer`}
           accessibilityRole="button"
-          style={[
+          style={({ pressed }) => [
             sharedStyles.card,
             styles.metricCard,
             isMedium && styles.metricCardMedium,
+            pressed && styles.pressed,
           ]}
           onPress={() => router.push("/inventario")}
         >
           <MaterialCommunityIcons
             name="alert-circle-outline"
-            size={21}
+            size={19}
             color={BrandColors.warning}
           />
-          <Text style={styles.metricValue}>{lowStock}</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.metricValue}>
+            {lowStock}
+          </Text>
           <Text style={styles.metricLabel}>Stock por reponer</Text>
         </Pressable>
       </View>
@@ -617,127 +619,83 @@ export default function InternalDashboardScreen() {
           />
         </View>
       ) : (
-        <>
-          <View style={[sharedStyles.card, styles.sessionCard]}>
-            <Text style={styles.formTitle}>Turno en curso</Text>
-            <Text style={styles.sessionDetail}>
-              Abierta {new Date(session.openedAt).toLocaleString("es-PE")}
-            </Text>
-            <View style={styles.summaryGrid}>
-              <SummaryValue
-                isMedium={isMedium}
-                label="Fondo inicial"
-                value={session.openingCashCents}
-              />
-              <SummaryValue
-                isMedium={isMedium}
-                label="Ventas efectivo"
-                value={summary?.cashSalesCents ?? 0}
-              />
-              <SummaryValue
-                isMedium={isMedium}
-                label="Ingresos"
-                value={summary?.manualIncomeCents ?? 0}
-              />
-              <SummaryValue
-                isMedium={isMedium}
-                label="Salidas"
-                value={summary?.manualOutflowCents ?? 0}
-              />
+        <View style={[sharedStyles.card, styles.sessionCard]}>
+          <View style={styles.sessionHeader}>
+            <View>
+              <Text style={styles.formTitle}>Turno en curso</Text>
+              <Text style={styles.sessionDetail}>
+                Abierto {new Date(session.openedAt).toLocaleString("es-PE")}
+              </Text>
             </View>
           </View>
-
-          <View style={[sharedStyles.card, styles.formCard]}>
-            <Text style={styles.formTitle}>Movimiento manual</Text>
-            <View style={styles.choiceRow}>
-              {(["income", "outflow"] as const).map((type) => (
-                <Pressable
-                  accessibilityLabel={
-                    type === "income"
-                      ? "Registrar tipo ingreso"
-                      : "Registrar tipo salida"
-                  }
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: movementType === type }}
-                  key={type}
-                  onPress={() => setMovementType(type)}
-                  style={[
-                    styles.choiceButton,
-                    movementType === type && styles.choiceButtonSelected,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.choiceText,
-                      movementType === type && styles.choiceTextSelected,
-                    ]}
-                  >
-                    {type === "income" ? "Ingreso" : "Salida"}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <View style={styles.inputWrap}>
-              <Text style={styles.inputPrefix}>S/</Text>
-              <TextInput
-                accessibilityLabel="Monto del movimiento"
-                keyboardType="decimal-pad"
-                onChangeText={setMovementAmount}
-                placeholder="0.00"
-                placeholderTextColor={BrandColors.muted}
-                style={styles.input}
-                value={movementAmount}
-              />
-            </View>
-            <TextInput
-              accessibilityLabel="Motivo del movimiento"
-              onChangeText={setMovementReason}
-              placeholder="Motivo del movimiento"
-              placeholderTextColor={BrandColors.muted}
-              style={styles.textInput}
-              value={movementReason}
+          <View style={styles.summaryGrid}>
+            <SummaryValue
+              isMedium={isMedium}
+              label="Fondo inicial"
+              value={session.openingCashCents}
             />
-            <PrimaryButton
-              label={isSaving ? "Guardando…" : "Registrar movimiento"}
-              onPress={handleMovement}
-              disabled={
-                movementCents === null ||
-                movementCents <= 0 ||
-                !movementReason.trim() ||
-                isSaving
-              }
+            <SummaryValue
+              isMedium={isMedium}
+              label="Ventas efectivo"
+              value={summary?.cashSalesCents ?? 0}
+            />
+            <SummaryValue
+              isMedium={isMedium}
+              label="Ingresos"
+              value={summary?.manualIncomeCents ?? 0}
+            />
+            <SummaryValue
+              isMedium={isMedium}
+              label="Salidas"
+              value={summary?.manualOutflowCents ?? 0}
             />
           </View>
-
-          <View style={[sharedStyles.card, styles.formCard]}>
-            <Text style={styles.formTitle}>Cierre de caja</Text>
-            <Text style={styles.formHint}>
-              Esperado: {formatMoney(summary?.expectedCashCents ?? 0)}
-            </Text>
-            <View style={styles.inputWrap}>
-              <Text style={styles.inputPrefix}>S/</Text>
-              <TextInput
-                accessibilityLabel="Efectivo contado"
-                keyboardType="decimal-pad"
-                onChangeText={setCountedAmount}
-                placeholder="Efectivo contado"
-                placeholderTextColor={BrandColors.muted}
-                style={styles.input}
-                value={countedAmount}
+          <View style={styles.sessionActions}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setMovementOpen(true)}
+              style={({ pressed }) => [
+                styles.sessionButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="swap-horizontal"
+                size={18}
+                color={BrandColors.greenDark}
               />
-            </View>
-            <PrimaryButton
-              label={isSaving ? "Cerrando…" : "Cerrar caja"}
-              icon="lock-outline"
-              onPress={handleClose}
-              disabled={countedCents === null || isSaving}
-            />
+              <Text style={styles.sessionButtonText}>Movimiento</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setCloseOpen(true)}
+              style={({ pressed }) => [
+                styles.sessionButton,
+                styles.sessionButtonDanger,
+                pressed && styles.pressed,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="lock-outline"
+                size={18}
+                color={BrandColors.danger}
+              />
+              <Text style={styles.sessionButtonTextDanger}>Cerrar caja</Text>
+            </Pressable>
           </View>
-        </>
+        </View>
       )}
 
       <SectionTitle
-        action={<Text style={styles.salesCountText}>{recentSales.length}</Text>}
+        action={
+          <Pressable
+            accessibilityRole="link"
+            onPress={() => router.push("/historial-ventas" as Href)}
+            style={({ pressed }) => [pressed && styles.pressed]}
+          >
+            <Text style={styles.historyLink}>Ver historial</Text>
+          </Pressable>
+        }
       >
         Ventas recientes
       </SectionTitle>
@@ -747,7 +705,7 @@ export default function InternalDashboardScreen() {
         ) : recentSales.length === 0 ? (
           <EmptyMessage text="Todavía no hay ventas en este turno." />
         ) : (
-          recentSales.map((sale, index) => (
+          recentSales.slice(0, 3).map((sale, index) => (
             <View
               key={sale.id}
               style={[styles.saleRow, index > 0 && styles.saleBorder]}
@@ -869,6 +827,112 @@ export default function InternalDashboardScreen() {
         </View>
       </ModalSurface>
 
+      <ModalSurface
+        dialogStyle={styles.voidDialog}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (isSaving) return;
+          setMovementOpen(false);
+        }}
+        visible={movementOpen}
+      >
+        <Text style={styles.voidTitle}>Movimiento de efectivo</Text>
+        <Text style={styles.voidHint}>
+          Registra ingresos o salidas que no son ventas.
+        </Text>
+        <View style={styles.choiceRow}>
+          {(["income", "outflow"] as const).map((type) => (
+            <Pressable
+              accessibilityLabel={
+                type === "income"
+                  ? "Registrar tipo ingreso"
+                  : "Registrar tipo salida"
+              }
+              accessibilityRole="radio"
+              accessibilityState={{ selected: movementType === type }}
+              key={type}
+              onPress={() => setMovementType(type)}
+              style={[
+                styles.choiceButton,
+                movementType === type && styles.choiceButtonSelected,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.choiceText,
+                  movementType === type && styles.choiceTextSelected,
+                ]}
+              >
+                {type === "income" ? "Ingreso" : "Salida"}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <View style={styles.inputWrap}>
+          <Text style={styles.inputPrefix}>S/</Text>
+          <TextInput
+            accessibilityLabel="Monto del movimiento"
+            keyboardType="decimal-pad"
+            onChangeText={setMovementAmount}
+            placeholder="0.00"
+            placeholderTextColor={BrandColors.muted}
+            style={styles.input}
+            value={movementAmount}
+          />
+        </View>
+        <TextInput
+          accessibilityLabel="Motivo del movimiento"
+          onChangeText={setMovementReason}
+          placeholder="Motivo del movimiento"
+          placeholderTextColor={BrandColors.muted}
+          style={styles.textInput}
+          value={movementReason}
+        />
+        <PrimaryButton
+          label={isSaving ? "Guardando…" : "Registrar movimiento"}
+          onPress={handleMovement}
+          disabled={
+            movementCents === null ||
+            movementCents <= 0 ||
+            !movementReason.trim() ||
+            isSaving
+          }
+        />
+      </ModalSurface>
+
+      <ModalSurface
+        dialogStyle={styles.voidDialog}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (isSaving) return;
+          setCloseOpen(false);
+        }}
+        visible={closeOpen}
+      >
+        <Text style={styles.voidTitle}>Cierre de caja</Text>
+        <Text style={styles.voidHint}>
+          Esperado: {formatMoney(summary?.expectedCashCents ?? 0)}
+        </Text>
+        <View style={styles.inputWrap}>
+          <Text style={styles.inputPrefix}>S/</Text>
+          <TextInput
+            accessibilityLabel="Efectivo contado"
+            keyboardType="decimal-pad"
+            onChangeText={setCountedAmount}
+            placeholder="Efectivo contado"
+            placeholderTextColor={BrandColors.muted}
+            style={styles.input}
+            value={countedAmount}
+          />
+        </View>
+        <PrimaryButton
+          label={isSaving ? "Cerrando…" : "Cerrar caja"}
+          icon="lock-outline"
+          onPress={handleClose}
+          disabled={countedCents === null || isSaving}
+        />
+      </ModalSurface>
+
       <SectionTitle>Accesos rápidos</SectionTitle>
       <View style={styles.actionGrid}>
         {visibleActions.map((action) => (
@@ -903,12 +967,11 @@ export default function InternalDashboardScreen() {
               />
             </View>
             <Text style={styles.actionTitle}>{action.title}</Text>
-            <Text style={styles.actionDescription}>{action.description}</Text>
             {action.route ? (
               <MaterialCommunityIcons
-                name="arrow-right"
-                size={19}
-                color={BrandColors.muted}
+                name="chevron-right"
+                size={17}
+                color={BrandColors.mutedLight}
                 style={styles.arrow}
               />
             ) : (
@@ -917,6 +980,9 @@ export default function InternalDashboardScreen() {
           </Pressable>
         ))}
       </View>
+
+      <SectionTitle>Usuario de la operación</SectionTitle>
+      <OperatorSelector />
     </AdminScreen>
   );
 }
@@ -953,7 +1019,7 @@ function EmptyMessage({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   sellNow: {
-    minHeight: 104,
+    minHeight: 88,
     borderRadius: Radius.xl,
     backgroundColor: BrandColors.gold,
     padding: Spacing.md,
@@ -1014,69 +1080,57 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: Spacing.lg,
   },
-  syncCard: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: Spacing.sm,
-    padding: Spacing.sm,
-  },
-  syncCopy: { flexGrow: 1, flexShrink: 1, flexBasis: 220, minWidth: 0 },
-  syncTitle: { color: BrandColors.text, ...Typography.label, flexShrink: 1 },
-  syncDetail: {
-    color: BrandColors.muted,
-    ...Typography.caption,
-    marginTop: Spacing.xxs,
-    flexShrink: 1,
-  },
-  syncButton: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 150,
-    minWidth: 140,
-    minHeight: ControlSize.default,
-    borderRadius: Radius.md,
-    backgroundColor: BrandColors.green,
+  syncSlim: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.sm,
   },
-  syncButtonDisabled: { opacity: Interaction.disabledOpacity },
-  syncButtonText: { color: BrandColors.white, ...Typography.label },
-  salesLabel: { color: BrandColors.greenMid, ...Typography.overline },
-  salesAmount: {
-    color: BrandColors.white,
-    ...Typography.display,
-    marginTop: Spacing.xs,
-  },
-  salesCount: {
-    color: BrandColors.greenMid,
+  syncDetail: {
+    flex: 1,
+    color: BrandColors.muted,
     ...Typography.caption,
-    marginTop: Spacing.xxs,
+    flexShrink: 1,
   },
-  trendIcon: {
-    width: ControlSize.large,
-    height: ControlSize.large,
-    borderRadius: Radius.lg,
-    backgroundColor: BrandColors.inkSoft,
+  syncChip: {
+    minHeight: ControlSize.compact,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.green,
     alignItems: "center",
     justifyContent: "center",
   },
+  syncChipText: { color: BrandColors.white, ...Typography.caption, fontWeight: "700" },
+  syncButtonDisabled: { opacity: Interaction.disabledOpacity },
+  metricCardDark: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 170,
+    backgroundColor: BrandColors.greenDark,
+    borderColor: BrandColors.greenDark,
+  },
+  metricValueDark: {
+    color: BrandColors.white,
+    ...Typography.h3,
+    fontWeight: "800",
+    marginTop: Spacing.xxs,
+  },
+  metricLabelDark: { color: BrandColors.greenMid, ...Typography.overline, letterSpacing: 0.6 },
   metricsRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.sm },
   metricCard: {
     flexGrow: 1,
     flexShrink: 1,
-    flexBasis: 220,
-    minWidth: 190,
-    padding: Spacing.md,
+    flexBasis: 150,
+    minWidth: 140,
+    padding: Spacing.sm,
   },
-  metricCardMedium: { maxWidth: 372 },
+  metricCardMedium: { maxWidth: 252 },
   metricValue: {
     color: BrandColors.text,
-    ...Typography.h2,
-    marginTop: Spacing.xs,
+    ...Typography.h3,
+    fontWeight: "800",
+    marginTop: Spacing.xxs,
     flexShrink: 1,
   },
   metricLabel: {
@@ -1089,7 +1143,31 @@ const styles = StyleSheet.create({
   feedbackTitle: { color: BrandColors.text, ...Typography.label },
   errorText: { color: BrandColors.danger, ...Typography.caption },
   formCard: { gap: Spacing.sm },
-  sessionCard: { gap: Spacing.xs },
+  sessionCard: { gap: Spacing.sm },
+  sessionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  sessionActions: { flexDirection: "row", gap: Spacing.xs },
+  sessionButton: {
+    flex: 1,
+    minHeight: ControlSize.default,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: BrandColors.green,
+    backgroundColor: BrandColors.greenLight,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xxs,
+  },
+  sessionButtonDanger: {
+    borderColor: BrandColors.danger,
+    backgroundColor: BrandColors.dangerLight,
+  },
+  sessionButtonText: { color: BrandColors.greenDark, ...Typography.label },
+  sessionButtonTextDanger: { color: BrandColors.danger, ...Typography.label },
   formTitle: { color: BrandColors.text, ...Typography.h3 },
   formHint: { color: BrandColors.muted, ...Typography.caption },
   sessionDetail: { color: BrandColors.muted, ...Typography.caption },
@@ -1147,13 +1225,13 @@ const styles = StyleSheet.create({
   summaryValue: {
     flexGrow: 1,
     flexShrink: 1,
-    flexBasis: 200,
-    minWidth: 160,
+    flexBasis: 150,
+    minWidth: 130,
     backgroundColor: BrandColors.cream,
     borderRadius: Radius.md,
-    padding: Spacing.sm,
+    padding: Spacing.xs,
   },
-  summaryValueMedium: { maxWidth: 252 },
+  summaryValueMedium: { maxWidth: 200 },
   summaryLabel: {
     color: BrandColors.muted,
     ...Typography.caption,
@@ -1165,7 +1243,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xxs,
     flexShrink: 1,
   },
-  salesCountText: { color: BrandColors.green, ...Typography.label },
+  historyLink: { color: BrandColors.green, ...Typography.label },
   recentCard: { paddingVertical: Spacing.xxs },
   saleRow: {
     flexDirection: "row",
@@ -1194,12 +1272,12 @@ const styles = StyleSheet.create({
   actionCard: {
     flexGrow: 1,
     flexShrink: 1,
-    flexBasis: 220,
-    minWidth: 190,
-    minHeight: 154,
-    padding: Spacing.md,
+    flexBasis: 150,
+    minWidth: 140,
+    minHeight: 92,
+    padding: Spacing.sm,
   },
-  actionCardMedium: { maxWidth: 252 },
+  actionCardMedium: { maxWidth: 200 },
   actionDisabled: { opacity: Interaction.disabledOpacity },
   actionIcon: {
     width: ControlSize.default,
@@ -1213,17 +1291,11 @@ const styles = StyleSheet.create({
   actionTitle: {
     color: BrandColors.text,
     ...Typography.label,
-    marginTop: Spacing.sm,
+    marginTop: Spacing.xs,
     flexShrink: 1,
+    paddingRight: Spacing.md,
   },
-  actionDescription: {
-    color: BrandColors.muted,
-    ...Typography.caption,
-    marginTop: Spacing.xxs,
-    marginBottom: Spacing.xs,
-    flexShrink: 1,
-  },
-  arrow: { position: "absolute", right: Spacing.md, bottom: Spacing.md },
+  arrow: { position: "absolute", right: Spacing.xs, bottom: Spacing.xs },
   pressed: { opacity: Interaction.pressedOpacity },
   voidButton: {
     flexDirection: "row",

@@ -12,6 +12,7 @@ import {
   BrandColors,
   ComponentMetrics,
   ControlSize,
+  Elevation,
   Interaction,
   Radius,
   Spacing,
@@ -239,7 +240,9 @@ export default function MyOrdersScreen() {
                   />
                 </View>
                 <View>
-                  <Text style={styles.number}>{order.orderNumber}</Text>
+                  <Text maxFontSizeMultiplier={1.3} numberOfLines={1} style={styles.number}>
+                    {order.orderNumber}
+                  </Text>
                   <Text style={styles.date}>
                     {new Date(order.createdAt).toLocaleDateString("es-PE", {
                       day: "numeric",
@@ -297,7 +300,7 @@ export default function MyOrdersScreen() {
                   · {order.paymentMethod.toUpperCase()}
                 </Text>
               </View>
-              <Text style={styles.total}>
+              <Text maxFontSizeMultiplier={1.4} style={styles.total}>
                 S/{" "}
                 {(
                   (order.finalTotalCents ?? order.estimatedTotalCents) / 100
@@ -566,6 +569,7 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.line,
     padding: Spacing.md,
     gap: Spacing.sm,
+    ...Elevation.ambientCard,
   },
   top: {
     flexDirection: "row",
@@ -576,6 +580,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,
+    flexShrink: 1,
   },
   orderIcon: {
     width: 42,
@@ -586,7 +591,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   orderIconActive: { backgroundColor: BrandColors.greenLight },
-  number: { color: BrandColors.text, ...Typography.label },
+  number: { color: BrandColors.text, ...Typography.label, flexShrink: 1 },
   date: {
     color: BrandColors.muted,
     ...Typography.caption,
@@ -771,6 +776,9 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.lineStrong,
     backgroundColor: BrandColors.white,
     paddingHorizontal: Spacing.sm,
+    paddingVertical: 13,
+    includeFontPadding: false,
+    textAlignVertical: "center",
     color: BrandColors.text,
     ...Typography.body,
   },

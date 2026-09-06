@@ -47,6 +47,7 @@ import { listPriceHistory } from "@/database/repositories/price-repository";
 import { updateProduct } from "@/database/repositories/product-repository";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { formatSoles as money } from "@/lib/money";
+import { formatDateTime } from "@/lib/format";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
 import { useLocalProducts } from "@/hooks/use-local-products";
 
@@ -428,7 +429,7 @@ export default function CatalogAdminScreen() {
                   </Text>
                   <Text style={styles.meta}>
                     {event.reason} ·{" "}
-                    {new Date(event.createdAt).toLocaleString("es-PE")}
+                    {formatDateTime(new Date(event.createdAt))}
                   </Text>
                 </View>
               </View>

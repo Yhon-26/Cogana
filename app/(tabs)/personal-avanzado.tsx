@@ -37,6 +37,7 @@ import {
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { useLocalDatabase } from "@/hooks/use-local-database";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
+import { formatDateShort } from "@/lib/format";
 
 const modules = [
   "venta",
@@ -327,19 +328,9 @@ export default function AdvancedPersonnelScreen() {
                   {shift.userName}
                 </Text>
                 <Text numberOfLines={1} style={styles.meta}>
-                  {new Date(shift.startsAt).toLocaleString("es-PE", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}{" "}
+                  {formatDateShort(new Date(shift.startsAt))}{" "}
                   →{" "}
-                  {new Date(shift.endsAt).toLocaleString("es-PE", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatDateShort(new Date(shift.endsAt))}
                 </Text>
               </View>
               <Pill
@@ -402,19 +393,9 @@ export default function AdvancedPersonnelScreen() {
                 </Text>
                 <Text numberOfLines={2} style={styles.meta}>
                   Entrada{" "}
-                  {new Date(entry.checkedInAt).toLocaleString("es-PE", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatDateShort(new Date(entry.checkedInAt))}
                   {entry.checkedOutAt
-                    ? ` · Salida ${new Date(entry.checkedOutAt).toLocaleString("es-PE", {
-                        day: "2-digit",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}`
+                    ? ` · Salida ${formatDateShort(new Date(entry.checkedOutAt))}`
                     : " · Jornada abierta"}
                 </Text>
               </View>

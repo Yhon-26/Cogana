@@ -36,6 +36,7 @@ import {
 } from "@/database/repositories/report-repository";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { formatSoles as money } from "@/lib/money";
+import { formatDateTime } from "@/lib/format";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
 import { useLocalDatabase } from "@/hooks/use-local-database";
 
@@ -345,7 +346,7 @@ export default function ReportsScreen() {
                   {session.responsibleName}
                 </Text>
                 <Text style={styles.muted}>
-                  {new Date(session.closedAt).toLocaleString("es-PE")} ·{" "}
+                  {formatDateTime(new Date(session.closedAt))} ·{" "}
                   {session.reviewDecision === "approved"
                     ? "Aprobada"
                     : session.reviewDecision === "requires_action"
@@ -386,7 +387,7 @@ export default function ReportsScreen() {
               <Row
                 key={`${event.eventType}-${event.id}`}
                 title={event.description}
-                subtitle={`${event.actorName} · ${new Date(event.createdAt).toLocaleString("es-PE")}`}
+                subtitle={`${event.actorName} · ${formatDateTime(new Date(event.createdAt))}`}
               />
             ))
           ) : (

@@ -46,6 +46,7 @@ import {
 } from "@/database/repositories/sales-history-repository";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { formatSoles as money } from "@/lib/money";
+import { formatDateShort, formatDateTime } from "@/lib/format";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
 import { useLocalDatabase } from "@/hooks/use-local-database";
 
@@ -362,12 +363,7 @@ export default function SalesHistoryScreen() {
                 />
               </View>
               <Text style={styles.meta}>
-                {new Date(sale.createdAt).toLocaleString("es-PE", {
-                  day: "2-digit",
-                  month: "short",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+                {formatDateShort(new Date(sale.createdAt))}
               </Text>
             </Pressable>
           ))}
@@ -389,12 +385,7 @@ export default function SalesHistoryScreen() {
                   {detail.sale.receiptNumber}
                 </Text>
                 <Text style={styles.sheetDate}>
-                  {new Date(detail.sale.createdAt).toLocaleString("es-PE", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatDateShort(new Date(detail.sale.createdAt))}
                 </Text>
               </View>
               <Pill
@@ -569,7 +560,7 @@ export default function SalesHistoryScreen() {
                   </Text>
                   <Text style={styles.returnMeta}>
                     {record.reason} ·{" "}
-                    {new Date(record.createdAt).toLocaleString("es-PE")}
+                    {formatDateTime(new Date(record.createdAt))}
                   </Text>
                 </View>
               ))}

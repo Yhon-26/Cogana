@@ -45,6 +45,7 @@ import { DEFAULT_STORE_ID } from "@/database/seed";
 import { formatSoles } from "@/lib/money";
 import { formatQuantity } from "@/lib/units";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
+import { formatDateTime } from "@/lib/format";
 import { useLocalDatabase } from "@/hooks/use-local-database";
 
 type MovementMode = "purchase" | "adjustment";
@@ -336,7 +337,7 @@ export default function ProductDetailScreen() {
               <View style={styles.movementCopy}>
                 <Text style={styles.movementReason}>{movement.reason}</Text>
                 <Text style={styles.movementDate}>
-                  {new Date(movement.createdAt).toLocaleString("es-PE")}
+                  {formatDateTime(new Date(movement.createdAt))}
                 </Text>
               </View>
               <Text style={styles.movementQuantity}>

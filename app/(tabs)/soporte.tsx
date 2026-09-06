@@ -38,6 +38,7 @@ import {
   updateStaffSupportTicket,
 } from "@/online/support-api";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
+import { formatDateTime } from "@/lib/format";
 
 const supportCategoryLabels: Record<SupportTicket["category"], string> = {
   order: "Pedido",
@@ -303,7 +304,7 @@ export default function StaffSupportScreen() {
                 <View key={message.id} style={styles.message}>
                   <Text style={styles.messageBody}>{message.body}</Text>
                   <Text style={styles.messageDate}>
-                    {new Date(message.createdAt).toLocaleString("es-PE")}
+                    {formatDateTime(new Date(message.createdAt))}
                   </Text>
                 </View>
               ))}

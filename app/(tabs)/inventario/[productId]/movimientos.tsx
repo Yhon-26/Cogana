@@ -27,6 +27,7 @@ import { getProductById } from "@/database/repositories/product-repository";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { useLocalDatabase } from "@/hooks/use-local-database";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
+import { formatDateTime } from "@/lib/format";
 
 const labels: Record<InventoryMovementRecord["type"], string> = {
   opening: "Apertura",
@@ -197,7 +198,7 @@ export default function InventoryMovementsScreen() {
             </View>
             <Text style={styles.reason}>{movement.reason}</Text>
             <Text style={styles.meta}>
-              {new Date(movement.createdAt).toLocaleString("es-PE")} · v
+              {formatDateTime(new Date(movement.createdAt))} · v
               {movement.version}
             </Text>
           </View>

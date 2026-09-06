@@ -45,6 +45,7 @@ import {
 } from "@/database/repositories/personnel-operations-repository";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { formatSoles as formatMoney } from "@/lib/money";
+import { formatDateTime } from "@/lib/format";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
 import { useAdaptiveLayout } from "@/hooks/use-adaptive-layout";
 import { useCashSession } from "@/hooks/use-cash-session";
@@ -634,7 +635,7 @@ export default function InternalDashboardScreen() {
             <View>
               <Text style={styles.formTitle}>Turno en curso</Text>
               <Text style={styles.sessionDetail}>
-                Abierto {new Date(session.openedAt).toLocaleString("es-PE")}
+                Abierto {formatDateTime(new Date(session.openedAt))}
               </Text>
             </View>
           </View>

@@ -61,6 +61,7 @@ import {
 } from "@/database/repositories/order-repository";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { formatSoles as formatMoney } from "@/lib/money";
+import { formatDateShort, formatDateTime } from "@/lib/format";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
 import { useDeliveryZones } from "@/hooks/use-delivery-zones";
 import { useLocalProducts } from "@/hooks/use-local-products";
@@ -843,12 +844,7 @@ export default function OrdersScreen() {
               </View>
               <View style={styles.totalRow}>
                 <Text style={styles.date}>
-                  {new Date(order.createdAt).toLocaleString("es-PE", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatDateShort(new Date(order.createdAt))}
                 </Text>
                 <Text
                   maxFontSizeMultiplier={1.4}
@@ -1207,12 +1203,7 @@ export default function OrdersScreen() {
                   {expanded.order.orderNumber}
                 </Text>
                 <Text style={styles.sheetDate}>
-                  {new Date(expanded.order.createdAt).toLocaleString("es-PE", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {formatDateShort(new Date(expanded.order.createdAt))}
                 </Text>
               </View>
               <Pill
@@ -1276,9 +1267,7 @@ export default function OrdersScreen() {
                     />
                     <Text style={styles.summaryText}>
                       Programado:{" "}
-                      {new Date(expanded.order.scheduledFor).toLocaleString(
-                        "es-PE",
-                      )}
+                      {formatDateTime(new Date(expanded.order.scheduledFor))}
                     </Text>
                   </View>
                 ) : null}

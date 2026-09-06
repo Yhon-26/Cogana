@@ -38,6 +38,7 @@ import {
   type StorePromotion,
 } from "@/online/promotion-admin-api";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
+import { formatDateTime, formatDateCompact } from "@/lib/format";
 
 export default function PromotionsScreen() {
   const { height } = useWindowDimensions();
@@ -267,8 +268,8 @@ export default function PromotionsScreen() {
                 </Text>
                 <Text numberOfLines={1} style={styles.meta}>
                   {promotion.couponCode ? `Cupón ${promotion.couponCode} · ` : ""}
-                  {new Date(promotion.startsAt).toLocaleDateString("es-PE")} →{" "}
-                  {new Date(promotion.endsAt).toLocaleDateString("es-PE")}
+                  {formatDateCompact(new Date(promotion.startsAt))} →{" "}
+                  {formatDateCompact(new Date(promotion.endsAt))}
                 </Text>
               </View>
               <MaterialCommunityIcons
@@ -335,8 +336,8 @@ export default function PromotionsScreen() {
                     color={BrandColors.muted}
                   />
                   <Text style={styles.summaryText}>
-                    {new Date(detail.startsAt).toLocaleString("es-PE")} →{" "}
-                    {new Date(detail.endsAt).toLocaleString("es-PE")}
+                    {formatDateTime(new Date(detail.startsAt))} →{" "}
+                    {formatDateTime(new Date(detail.endsAt))}
                   </Text>
                 </View>
               </View>

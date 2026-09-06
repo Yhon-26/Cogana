@@ -30,6 +30,7 @@ import { DEFAULT_STORE_ID } from "@/database/seed";
 import { useLocalDatabase } from "@/hooks/use-local-database";
 import { useSync } from "@/hooks/use-sync";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
+import { formatDateTime } from "@/lib/format";
 
 const authStateLabels: Record<
   ReturnType<typeof useSupabaseAuth>["state"],
@@ -92,7 +93,7 @@ function formatOperationType(value: string) {
 }
 
 function formatDate(value: string | null | undefined) {
-  return value ? new Date(value).toLocaleString("es-PE") : "Sin registro";
+  return value ? formatDateTime(new Date(value)) : "Sin registro";
 }
 
 export default function SyncDiagnosticsScreen() {
@@ -276,7 +277,7 @@ export default function SyncDiagnosticsScreen() {
                     {formatOperationType(operation.operationType)}
                   </Text>
                   <Text style={styles.meta}>
-                    {new Date(operation.createdAt).toLocaleString("es-PE")} ·
+                    {formatDateTime(new Date(operation.createdAt))} ·
                     intento {operation.attempts}
                   </Text>
                 </View>

@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { File, Paths } from "expo-file-system";
 import { useFocusEffect } from "expo-router";
 import * as Sharing from "expo-sharing";
@@ -13,12 +14,12 @@ import {
   sharedStyles,
 } from "@/components/admin-ui";
 import { ModalSurface } from "@/components/modal-surface";
-import { OperatorSelector } from "@/components/operator-selector";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   BrandColors,
   ComponentMetrics,
   ControlSize,
+  Elevation,
   Radius,
   Spacing,
   Typography,
@@ -54,6 +55,8 @@ export default function ReportsScreen() {
   const database = useLocalDatabase();
   const { selectedUser, deviceId } = useLocalOperator();
   const [report, setReport] = useState<ReportDashboard | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<ViewName>("sales");
   const [reviewTarget, setReviewTarget] = useState<CashDifferenceReport | null>(
     null,
@@ -62,14 +65,21 @@ export default function ReportsScreen() {
     useState<CashDifferenceDecision>("approved");
   const [reviewJustification, setReviewJustification] = useState("");
   const [isSavingReview, setIsSavingReview] = useState(false);
+
   const load = useCallback(async () => {
+    setIsLoading(true);
     try {
       setReport(await getReportDashboard(database, DEFAULT_STORE_ID));
+      setLoadError(null);
     } catch (caughtError) {
-      Alert.alert(
-        "No se pudo generar",
-        getOperatorErrorMessage(caughtError, "Intenta nuevamente."),
+      setLoadError(
+        getOperatorErrorMessage(
+          caughtError,
+          "No se pudieron calcular los indicadores.",
+        ),
       );
+    } finally {
+      setIsLoading(false);
     }
   }, [database]);
   useFocusEffect(useCallback(() => void load(), [load]));
@@ -108,6 +118,7 @@ export default function ReportsScreen() {
     }
     await Share.share({ title: "Reporte Cogana CSV", message: csv });
   };
+
   const saveCashReview = async () => {
     if (!reviewTarget || !selectedUser || isSavingReview) return;
     setIsSavingReview(true);
@@ -133,6 +144,17 @@ export default function ReportsScreen() {
     }
   };
 
+  const sectionEmpty = (message: string) => (
+    <View style={[sharedStyles.card, styles.sectionEmpty]}>
+      <MaterialCommunityIcons
+        name="chart-box-outline"
+        size={24}
+        color={BrandColors.muted}
+      />
+      <Text style={styles.muted}>{message}</Text>
+    </View>
+  );
+
   return (
     <AdminScreen
       title="Reportes"
@@ -148,7 +170,23 @@ export default function ReportsScreen() {
         </Pressable>
       }
     >
-      <OperatorSelector />
+      {!selectedUser ? (
+        <View style={[sharedStyles.card, styles.operatorNotice]}>
+          <MaterialCommunityIcons
+            name="account-key-outline"
+            size={22}
+            color={BrandColors.warning}
+          />
+          <View style={styles.operatorNoticeCopy}>
+            <Text style={styles.operatorNoticeTitle}>Falta tu operador</Text>
+            <Text style={styles.operatorNoticeText}>
+              Activa tu perfil con PIN en la pestaña Más para revisar diferencias
+              de caja.
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
       <View style={styles.tabs}>
         {(
           [
@@ -170,12 +208,19 @@ export default function ReportsScreen() {
           </Pressable>
         ))}
       </View>
-      {!report ? (
-        <Text accessibilityLiveRegion="polite" style={styles.muted}>
-          Calculando indicadores…
-        </Text>
-      ) : null}
-      {report && view === "sales" ? (
+
+      {isLoading ? (
+        <View style={[sharedStyles.card, styles.feedback]}>
+          <Text style={styles.muted}>Calculando indicadores…</Text>
+        </View>
+      ) : loadError ? (
+        <View style={[sharedStyles.card, styles.feedback]}>
+          <Text accessibilityRole="alert" style={styles.errorText}>
+            {loadError}
+          </Text>
+          <PrimaryButton label="Reintentar" onPress={() => void load()} />
+        </View>
+      ) : report && view === "sales" ? (
         <>
           <View style={styles.metrics}>
             <Metric label="Ventas" value={money(report.sales.totalCents)} />
@@ -194,29 +239,36 @@ export default function ReportsScreen() {
             Productos vendidos
           </SectionTitle>
           <View style={[sharedStyles.card, styles.list]}>
-            {report.products.map((product) => (
-              <Row
-                key={product.productId}
-                title={product.productName}
-                subtitle={`${product.quantity} ${product.baseUnit === "gram" ? "g" : "un."} · margen ${money(product.marginCents)}`}
-                value={money(product.salesCents)}
-              />
-            ))}
+            {report.products.length ? (
+              report.products.map((product) => (
+                <Row
+                  key={product.productId}
+                  title={product.productName}
+                  subtitle={`${product.quantity} ${product.baseUnit === "gram" ? "g" : "un."} · margen ${money(product.marginCents)}`}
+                  value={money(product.salesCents)}
+                />
+              ))
+            ) : (
+              <Text style={styles.muted}>Aún no hay ventas en el periodo.</Text>
+            )}
           </View>
           <SectionTitle>Medios de pago</SectionTitle>
           <View style={[sharedStyles.card, styles.list]}>
-            {report.payments.map((payment) => (
-              <Row
-                key={payment.method}
-                title={formatPaymentMethod(payment.method)}
-                subtitle={`${payment.paymentCount} pagos`}
-                value={money(payment.totalCents)}
-              />
-            ))}
+            {report.payments.length ? (
+              report.payments.map((payment) => (
+                <Row
+                  key={payment.method}
+                  title={formatPaymentMethod(payment.method)}
+                  subtitle={`${payment.paymentCount} pagos`}
+                  value={money(payment.totalCents)}
+                />
+              ))
+            ) : (
+              <Text style={styles.muted}>Aún no hay pagos registrados.</Text>
+            )}
           </View>
         </>
-      ) : null}
-      {report && view === "inventory" ? (
+      ) : report && view === "inventory" ? (
         <>
           <View style={styles.metrics}>
             <Metric
@@ -248,20 +300,24 @@ export default function ReportsScreen() {
             />
           </View>
         </>
-      ) : null}
-      {report && view === "customers" ? (
+      ) : report && view === "customers" ? (
         <View style={[sharedStyles.card, styles.list]}>
-          {report.customers.map((customer) => (
-            <Row
-              key={customer.customerId}
-              title={customer.customerName}
-              subtitle={`${customer.phone} · ${customer.orderCount} pedidos`}
-              value={money(customer.totalCents)}
-            />
-          ))}
+          {report.customers.length ? (
+            report.customers.map((customer) => (
+              <Row
+                key={customer.customerId}
+                title={customer.customerName}
+                subtitle={`${customer.phone} · ${customer.orderCount} pedidos`}
+                value={money(customer.totalCents)}
+              />
+            ))
+          ) : (
+            <Text style={styles.muted}>
+              Aún no hay clientes con pedidos registrados.
+            </Text>
+          )}
         </View>
-      ) : null}
-      {report && view === "cash" ? (
+      ) : report && view === "cash" ? (
         <View style={[sharedStyles.card, styles.list]}>
           {report.cashDifferences.map((session) => (
             <Pressable
@@ -285,7 +341,9 @@ export default function ReportsScreen() {
               style={styles.row}
             >
               <View style={styles.fill}>
-                <Text style={styles.rowTitle}>{session.responsibleName}</Text>
+                <Text maxFontSizeMultiplier={1.3} style={styles.rowTitle}>
+                  {session.responsibleName}
+                </Text>
                 <Text style={styles.muted}>
                   {new Date(session.closedAt).toLocaleString("es-PE")} ·{" "}
                   {session.reviewDecision === "approved"
@@ -298,6 +356,7 @@ export default function ReportsScreen() {
                 </Text>
               </View>
               <Text
+                maxFontSizeMultiplier={1.4}
                 style={[
                   styles.value,
                   session.differenceCents !== 0 && styles.danger,
@@ -306,24 +365,36 @@ export default function ReportsScreen() {
                 {session.differenceCents >= 0 ? "+" : ""}
                 {money(session.differenceCents)}
               </Text>
+              {session.differenceCents &&
+              selectedUser?.role === "administrator" ? (
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={18}
+                  color={BrandColors.muted}
+                />
+              ) : null}
             </Pressable>
           ))}
-          {!report.cashDifferences.length ? (
-            <Text style={styles.muted}>Aún no hay cierres de caja.</Text>
-          ) : null}
+          {!report.cashDifferences.length
+            ? sectionEmpty("Aún no hay cierres de caja.")
+            : null}
         </View>
-      ) : null}
-      {report && view === "audit" ? (
+      ) : report && view === "audit" ? (
         <View style={[sharedStyles.card, styles.list]}>
-          {report.audit.map((event) => (
-            <Row
-              key={`${event.eventType}-${event.id}`}
-              title={event.description}
-              subtitle={`${event.actorName} · ${new Date(event.createdAt).toLocaleString("es-PE")}`}
-            />
-          ))}
+          {report.audit.length ? (
+            report.audit.map((event) => (
+              <Row
+                key={`${event.eventType}-${event.id}`}
+                title={event.description}
+                subtitle={`${event.actorName} · ${new Date(event.createdAt).toLocaleString("es-PE")}`}
+              />
+            ))
+          ) : (
+            <Text style={styles.muted}>Aún no hay eventos de auditoría.</Text>
+          )}
         </View>
       ) : null}
+
       <ModalSurface
         dialogStyle={styles.dialog}
         dismissOnBackdrop={!isSavingReview}
@@ -332,7 +403,16 @@ export default function ReportsScreen() {
         }}
         visible={reviewTarget !== null}
       >
-        <Text style={styles.dialogTitle}>Revisar diferencia de caja</Text>
+        <View style={styles.dialogHeader}>
+          <MaterialCommunityIcons
+            name="cash-check"
+            size={24}
+            color={BrandColors.greenDark}
+          />
+          <Text maxFontSizeMultiplier={1.3} style={styles.dialogTitle}>
+            Revisar diferencia de caja
+          </Text>
+        </View>
         <Text style={styles.muted}>
           {reviewTarget?.responsibleName} ·{" "}
           {reviewTarget ? money(reviewTarget.differenceCents) : ""}
@@ -378,9 +458,9 @@ export default function ReportsScreen() {
             label="Cancelar"
             onPress={() => setReviewTarget(null)}
             style={styles.dialogButton}
-            tone="secondary"
+            tone="ghost"
           />
-          <PrimaryButton
+          <ActionButton
             compact
             disabled={!reviewJustification.trim() || isSavingReview}
             label={isSavingReview ? "Guardando…" : "Guardar revisión"}
@@ -397,11 +477,19 @@ export default function ReportsScreen() {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.metric}>
-      <Text style={styles.metricValue}>{value}</Text>
+      <Text
+        maxFontSizeMultiplier={1.4}
+        adjustsFontSizeToFit
+        numberOfLines={1}
+        style={styles.metricValue}
+      >
+        {value}
+      </Text>
       <Text style={styles.metricLabel}>{label}</Text>
     </View>
   );
 }
+
 function Row({
   title,
   subtitle,
@@ -416,11 +504,20 @@ function Row({
   return (
     <View style={styles.row}>
       <View style={styles.fill}>
-        <Text style={styles.rowTitle}>{title}</Text>
+        <Text maxFontSizeMultiplier={1.3} style={styles.rowTitle}>
+          {title}
+        </Text>
         <Text style={styles.muted}>{subtitle}</Text>
       </View>
       {value ? (
-        <Text style={[styles.value, danger && styles.danger]}>{value}</Text>
+        <Text
+          maxFontSizeMultiplier={1.4}
+          adjustsFontSizeToFit
+          numberOfLines={1}
+          style={[styles.value, danger && styles.danger]}
+        >
+          {value}
+        </Text>
       ) : null}
     </View>
   );
@@ -436,9 +533,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   exportText: { color: BrandColors.white, ...Typography.label },
+  operatorNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  operatorNoticeCopy: { flex: 1 },
+  operatorNoticeTitle: { color: BrandColors.text, ...Typography.label },
+  operatorNoticeText: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs },
   tab: {
-    minHeight: ControlSize.default,
+    minHeight: ControlSize.compact,
     borderRadius: Radius.round,
     backgroundColor: BrandColors.white,
     borderWidth: 1,
@@ -455,6 +564,8 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontWeight: "700",
   },
+  feedback: { gap: Spacing.sm },
+  errorText: { color: BrandColors.danger, ...Typography.caption },
   metrics: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs },
   metric: {
     flexGrow: 1,
@@ -466,6 +577,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BrandColors.line,
     padding: Spacing.sm,
+    ...Elevation.ambientCard,
   },
   metricValue: { color: BrandColors.text, ...Typography.h3 },
   metricLabel: {
@@ -474,6 +586,11 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xxs,
   },
   list: { paddingVertical: Spacing.xxs },
+  sectionEmpty: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
   row: {
     minHeight: ControlSize.large,
     flexDirection: "row",
@@ -494,7 +611,8 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     gap: Spacing.sm,
   },
-  dialogTitle: { color: BrandColors.text, ...Typography.h3 },
+  dialogHeader: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
+  dialogTitle: { color: BrandColors.text, ...Typography.h3, flex: 1 },
   decisionRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs },
   decision: {
     flexGrow: 1,

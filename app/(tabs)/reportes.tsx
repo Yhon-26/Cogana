@@ -59,6 +59,7 @@ export default function ReportsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [view, setView] = useState<ViewName>("sales");
+  const [auditCount, setAuditCount] = useState(20);
   const [reviewTarget, setReviewTarget] = useState<CashDifferenceReport | null>(
     null,
   );
@@ -383,13 +384,28 @@ export default function ReportsScreen() {
       ) : report && view === "audit" ? (
         <View style={[sharedStyles.card, styles.list]}>
           {report.audit.length ? (
-            report.audit.map((event) => (
-              <Row
-                key={`${event.eventType}-${event.id}`}
-                title={event.description}
-                subtitle={`${event.actorName} · ${formatDateTime(new Date(event.createdAt))}`}
-              />
-            ))
+            <>
+              {report.audit.slice(0, auditCount).map((event) => (
+                <Row
+                  key={`${event.eventType}-${event.id}`}
+                  title={event.description}
+                  subtitle={`${event.actorName} · ${formatDateTime(new Date(event.createdAt))}`}
+                />
+              ))}
+              {report.audit.length > auditCount ? (
+                <Pressable
+                  accessibilityLabel="Mostrar más eventos de auditoría"
+                  accessibilityRole="button"
+                  onPress={() => setAuditCount((current) => current + 20)}
+                  style={styles.showMore}
+                >
+                  <Text style={styles.showMoreText}>
+                    Mostrar más eventos ({report.audit.length - auditCount}{" "}
+                    restantes)
+                  </Text>
+                </Pressable>
+              ) : null}
+            </>
           ) : (
             <Text style={styles.muted}>Aún no hay eventos de auditoría.</Text>
           )}
@@ -587,6 +603,13 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xxs,
   },
   list: { paddingVertical: Spacing.xxs },
+  showMore: {
+    minHeight: ControlSize.default,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.sm,
+  },
+  showMoreText: { color: BrandColors.greenDark, ...Typography.label },
   sectionEmpty: {
     flexDirection: "row",
     alignItems: "center",

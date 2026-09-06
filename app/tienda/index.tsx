@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, type Href, useFocusEffect } from "expo-router";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Pressable,
@@ -30,6 +30,7 @@ import {
 import { useCart } from "@/context/cart-context";
 import { useCustomerAuth } from "@/context/customer-auth-context";
 import { useAdaptiveLayout } from "@/hooks/use-adaptive-layout";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import type {
   OnlineCatalog,
@@ -175,8 +176,14 @@ export default function StoreHomeScreen() {
 
   useFocusEffect(useCallback(() => void load(), [load]));
 
+  const debouncedQuery = useDebouncedValue(query);
+  const [visibleCount, setVisibleCount] = useState(30);
+  useEffect(() => {
+    setVisibleCount(30);
+  }, [category, debouncedQuery]);
+
   const products = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase("es-PE");
+    const normalized = debouncedQuery.trim().toLocaleLowerCase("es-PE");
     const favorites = new Set(preferences?.favoriteProductIds ?? []);
     return (catalog?.products ?? [])
       .filter(
@@ -191,7 +198,12 @@ export default function StoreHomeScreen() {
         (left, right) =>
           Number(favorites.has(right.id)) - Number(favorites.has(left.id)),
       );
-  }, [catalog, category, preferences?.favoriteProductIds, query]);
+  }, [catalog, category, debouncedQuery, preferences?.favoriteProductIds]);
+
+  const shownProducts = useMemo(
+    () => products.slice(0, visibleCount),
+    [products, visibleCount],
+  );
 
   const promotion = preferences?.promotions[0] ?? null;
 
@@ -360,7 +372,7 @@ export default function StoreHomeScreen() {
         </View>
       ) : (
         <View style={styles.grid}>
-          {products.map((product) => {
+          {shownProducts.map((product) => {
             const favorite =
               preferences?.favoriteProductIds.includes(product.id) ?? false;
             const inCart = items.some((item) => item.product.id === product.id);
@@ -451,6 +463,22 @@ export default function StoreHomeScreen() {
           })}
         </View>
       )}
+
+      {catalog && products.length > shownProducts.length ? (
+        <Pressable
+          accessibilityLabel={`Ver más productos, quedan ${products.length - shownProducts.length}`}
+          accessibilityRole="button"
+          onPress={() =>
+            setVisibleCount((current) => Math.min(current + 30, products.length))
+          }
+          style={({ pressed }) => [styles.moreButton, pressed && styles.pressed]}
+        >
+          <Text style={styles.moreText}>
+            Ver más productos ({products.length - shownProducts.length}{" "}
+            restantes)
+          </Text>
+        </Pressable>
+      ) : null}
 
       {catalog && products.length === 0 ? (
         <View style={styles.empty}>
@@ -764,6 +792,20 @@ const styles = StyleSheet.create({
     color: BrandColors.muted,
     ...Typography.body,
     textAlign: "center",
+  },
+  moreButton: {
+    minHeight: ControlSize.default,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: BrandColors.green,
+    backgroundColor: BrandColors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.md,
+  },
+  moreText: {
+    color: BrandColors.greenDark,
+    ...Typography.label,
   },
   trust: {
     flexDirection: "row",

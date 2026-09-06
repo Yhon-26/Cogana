@@ -79,7 +79,7 @@ export function OperatorSelector() {
   } as const;
 
   if (isLoading) {
-    return <Text style={styles.feedback}>Cargando perfiles del equipo…</Text>;
+    return null;
   }
   if (error) {
     return (
@@ -244,8 +244,21 @@ export function OperatorSelector() {
     setPickerVisible(true);
   };
 
+  // Decisión de producto: por ahora solo el dueño opera la tienda, así que con
+  // un solo perfil la interfaz se retira por completo y solo reaparece cuando
+  // hay algo que reparar (sesión Supabase pendiente). Al incorporar vendedores
+  // (más de un perfil) la barra de cambio con PIN vuelve automáticamente.
+  const singleOperator = users.length <= 1;
+  const showFullBar = !singleOperator;
+  const showSessionBar =
+    singleOperator &&
+    selectedUser !== null &&
+    authState !== "authenticated";
+  const showIdentityBar = singleOperator && selectedUser === null;
+
   return (
     <>
+      {showFullBar ? (
       <View style={[styles.card, styles.bar]}>
         {selectedUser ? (
           <>
@@ -314,7 +327,62 @@ export function OperatorSelector() {
           </>
         )}
       </View>
+      ) : null}
 
+      {showSessionBar && selectedUser ? (
+        <View style={[styles.card, styles.bar, styles.sessionBar]}>
+          <MaterialCommunityIcons
+            name="cloud-off-outline"
+            size={17}
+            color={BrandColors.warning}
+          />
+          <View style={styles.barCopy}>
+            <Text numberOfLines={1} style={styles.barName}>
+              {authLabels[authState]}
+            </Text>
+            {authMessage ? (
+              <Text numberOfLines={1} style={styles.barMeta}>
+                {authMessage}
+              </Text>
+            ) : null}
+          </View>
+          <ActionButton
+            compact
+            label={selectedUser.authUserId ? "Renovar" : "Vincular"}
+            onPress={() => {
+              setLinkError(null);
+              setLinkVisible(true);
+            }}
+          />
+        </View>
+      ) : null}
+
+      {showIdentityBar && users[0] ? (
+        <View style={[styles.card, styles.bar]}>
+          <View style={styles.avatarMuted}>
+            <MaterialCommunityIcons
+              name="account-key-outline"
+              size={20}
+              color={BrandColors.warning}
+            />
+          </View>
+          <View style={styles.barCopy}>
+            <Text maxFontSizeMultiplier={1.3} style={styles.barName}>
+              Identifícate para operar
+            </Text>
+            <Text numberOfLines={1} style={styles.barMeta}>
+              Se activará tu perfil en este dispositivo.
+            </Text>
+          </View>
+          <ActionButton
+            compact
+            label="Identificarme"
+            onPress={() => requestSelectUser(users[0].id)}
+          />
+        </View>
+      ) : null}
+
+      {showFullBar ? (
       <ModalSurface
         dialogStyle={styles.dialog}
         onClose={() => setPickerVisible(false)}
@@ -428,6 +496,7 @@ export function OperatorSelector() {
           ) : null}
         </View>
       </ModalSurface>
+      ) : null}
 
       <ModalSurface
         dialogStyle={styles.dialog}
@@ -633,6 +702,10 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xxs,
   },
   barButton: { flexGrow: 0 },
+  sessionBar: {
+    borderColor: BrandColors.goldLight,
+    backgroundColor: BrandColors.goldLight,
+  },
   provisioningCard: {
     padding: Spacing.lg,
     gap: Spacing.sm,

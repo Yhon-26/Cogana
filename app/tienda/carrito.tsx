@@ -20,22 +20,9 @@ import {
 } from "@/constants/theme";
 import { useCart } from "@/context/cart-context";
 import { calculateLineTotalCents } from "@/database/integer-calculations";
-import type { SubstitutionPolicy } from "@/database/models";
-
-const policies: { value: SubstitutionPolicy; label: string }[] = [
-  { value: "contact", label: "Consultarme" },
-  { value: "allow", label: "Aceptar similar" },
-  { value: "remove", label: "Retirar si falta" },
-];
 
 export default function CartScreen() {
-  const {
-    items,
-    subtotalCents,
-    setQuantity,
-    setSubstitutionPolicy,
-    removeItem,
-  } = useCart();
+  const { items, subtotalCents, setQuantity, removeItem } = useCart();
   return (
     <OnlineScreen
       title="Tu carrito"
@@ -141,38 +128,6 @@ export default function CartScreen() {
                   S/ {(lineTotal / 100).toFixed(2)}
                 </Text>
               </View>
-            </View>
-            <Text style={styles.policyTitle}>SI ESTE PRODUCTO SE AGOTA</Text>
-            <View style={styles.policies}>
-              {policies.map((policy) => (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{
-                    checked: item.substitutionPolicy === policy.value,
-                  }}
-                  key={policy.value}
-                  onPress={() =>
-                    setSubstitutionPolicy(item.product.id, policy.value)
-                  }
-                  style={({ pressed }) => [
-                    styles.policy,
-                    item.substitutionPolicy === policy.value &&
-                      styles.policyActive,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text
-                    maxFontSizeMultiplier={1.3}
-                    style={[
-                      styles.policyText,
-                      item.substitutionPolicy === policy.value &&
-                        styles.policyTextActive,
-                    ]}
-                  >
-                    {policy.label}
-                  </Text>
-                </Pressable>
-              ))}
             </View>
           </View>
         );
@@ -299,25 +254,6 @@ const styles = StyleSheet.create({
   lineTotalCopy: { alignItems: "flex-end", flexShrink: 1 },
   lineTotalLabel: { color: BrandColors.muted, ...Typography.caption },
   lineTotal: { color: BrandColors.text, ...Typography.h3, fontWeight: "800" },
-  policyTitle: { color: BrandColors.muted, ...Typography.overline },
-  policies: { flexDirection: "row", gap: Spacing.xs },
-  policy: {
-    flex: 1,
-    minHeight: ControlSize.default,
-    borderRadius: Radius.sm,
-    backgroundColor: BrandColors.surfaceMuted,
-    paddingHorizontal: Spacing.xxs,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  policyActive: { backgroundColor: BrandColors.greenDark },
-  policyText: {
-    color: BrandColors.muted,
-    ...Typography.caption,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-  policyTextActive: { color: BrandColors.white },
   empty: {
     alignItems: "center",
     gap: Spacing.sm,

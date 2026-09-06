@@ -8,7 +8,6 @@ import { ModalSurface } from "@/components/modal-surface";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   BrandColors,
-  ComponentMetrics,
   ControlSize,
   Interaction,
   Radius,
@@ -20,6 +19,20 @@ import { useSupabaseAuth } from "@/context/supabase-auth-context";
 import { isValidNewPinFormat, isValidPinFormat } from "@/database/pin";
 import { DEFAULT_STORE_ID } from "@/database/seed";
 import { getOperatorErrorMessage } from "@/lib/user-facing-error";
+
+function initialsOf(name: string) {
+  const letters = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word.charAt(0))
+    .join("");
+  return letters ? letters.toUpperCase() : "?";
+}
+
+function roleLabelOf(role: "administrator" | "seller") {
+  return role === "administrator" ? "Administrador" : "Vendedor";
+}
 
 export function OperatorSelector() {
   const {
@@ -43,6 +56,7 @@ export function OperatorSelector() {
     linkOperator,
     provisionFirstOperator,
   } = useSupabaseAuth();
+  const [pickerVisible, setPickerVisible] = useState(false);
   const [pinInput, setPinInput] = useState("");
   const [linkVisible, setLinkVisible] = useState(false);
   const [email, setEmail] = useState("");
@@ -54,6 +68,15 @@ export function OperatorSelector() {
   const [provisionPin, setProvisionPin] = useState("");
   const [isProvisioning, setIsProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState<string | null>(null);
+
+  const authLabels = {
+    unconfigured: "Supabase no configurado",
+    local_only: "Cuenta central pendiente",
+    connecting: "Conectando con Supabase…",
+    authenticated: "Sesión Supabase activa",
+    offline: "Sin conexión · reconecta para continuar",
+    error: "Vínculo Supabase requiere atención",
+  } as const;
 
   if (isLoading) {
     return <Text style={styles.feedback}>Cargando perfiles del equipo…</Text>;
@@ -98,14 +121,16 @@ export function OperatorSelector() {
       Boolean(provisionPassword) &&
       isValidNewPinFormat(provisionPin);
     return (
-      <View style={[styles.container, styles.provisioningCard]}>
+      <View style={[styles.card, styles.provisioningCard]}>
         <View style={styles.dialogHeader}>
           <MaterialCommunityIcons
             name="shield-account-outline"
-            size={26}
+            size={24}
             color={BrandColors.greenDark}
           />
-          <Text style={styles.dialogTitle}>Aprovisionar dispositivo</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.dialogTitle}>
+            Aprovisionar dispositivo
+          </Text>
         </View>
         <Text style={styles.dialogHint}>
           Inicia sesión con una cuenta owner o administradora activa de
@@ -188,14 +213,6 @@ export function OperatorSelector() {
   };
 
   const requiresCreate = Boolean(pendingUser && !pendingUser.hasPin);
-  const authLabels = {
-    unconfigured: "Supabase no configurado",
-    local_only: "Cuenta central pendiente",
-    connecting: "Conectando con Supabase…",
-    authenticated: "Sesión Supabase activa",
-    offline: "Sin conexión · reconecta para continuar",
-    error: "Vínculo Supabase requiere atención",
-  } as const;
 
   const closeLinkDialog = () => {
     if (isLinking) return;
@@ -222,86 +239,195 @@ export function OperatorSelector() {
     }
   };
 
+  const openPicker = () => {
+    setLinkError(null);
+    setPickerVisible(true);
+  };
+
   return (
-    <View style={styles.container}>
-      <View style={styles.usersRow}>
-        {users.map((user) => {
-          const selected = user.id === selectedUser?.id;
-          return (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              key={user.id}
-              onPress={() => requestSelectUser(user.id)}
-              style={({ pressed }) => [
-                styles.option,
-                selected && styles.optionSelected,
-                pressed && styles.pressed,
-              ]}
-            >
-              <View style={styles.optionTop}>
-                <Text style={[styles.name, selected && styles.nameSelected]}>
-                  {user.displayName}
-                </Text>
+    <>
+      <View style={[styles.card, styles.bar]}>
+        {selectedUser ? (
+          <>
+            <View style={styles.avatar}>
+              <Text maxFontSizeMultiplier={1.2} style={styles.avatarText}>
+                {initialsOf(selectedUser.displayName)}
+              </Text>
+            </View>
+            <View style={styles.barCopy}>
+              <Text
+                maxFontSizeMultiplier={1.3}
+                numberOfLines={1}
+                style={styles.barName}
+              >
+                {selectedUser.displayName}
+              </Text>
+              <Text numberOfLines={1} style={styles.barMeta}>
+                {roleLabelOf(selectedUser.role)} ·{" "}
+                {selectedUser.hasPin ? "PIN configurado" : "Sin PIN"}
+              </Text>
+            </View>
+            <MaterialCommunityIcons
+              name={
+                authState === "authenticated"
+                  ? "cloud-check-outline"
+                  : "cloud-off-outline"
+              }
+              size={17}
+              color={
+                authState === "authenticated"
+                  ? BrandColors.green
+                  : BrandColors.warning
+              }
+            />
+            <ActionButton
+              compact
+              label="Cambiar"
+              onPress={openPicker}
+              style={styles.barButton}
+              tone="ghost"
+            />
+          </>
+        ) : (
+          <>
+            <View style={styles.avatarMuted}>
+              <MaterialCommunityIcons
+                name="account-key-outline"
+                size={20}
+                color={BrandColors.warning}
+              />
+            </View>
+            <View style={styles.barCopy}>
+              <Text maxFontSizeMultiplier={1.3} style={styles.barName}>
+                Ningún operador activo
+              </Text>
+              <Text numberOfLines={1} style={styles.barMeta}>
+                Identifícate con tu PIN para operar.
+              </Text>
+            </View>
+            <ActionButton
+              compact
+              label="Identificarme"
+              onPress={openPicker}
+              style={styles.barButton}
+            />
+          </>
+        )}
+      </View>
+
+      <ModalSurface
+        dialogStyle={styles.dialog}
+        onClose={() => setPickerVisible(false)}
+        visible={pickerVisible}
+      >
+        <View style={styles.dialogHeader}>
+          <MaterialCommunityIcons
+            name="shield-account-outline"
+            size={24}
+            color={BrandColors.greenDark}
+          />
+          <Text maxFontSizeMultiplier={1.3} style={styles.dialogTitle}>
+            Operadores del dispositivo
+          </Text>
+        </View>
+        <Text style={styles.dialogHint}>
+          Toca tu perfil e ingresa el PIN configurado en este dispositivo.
+        </Text>
+        <View style={styles.pickerList}>
+          {users.map((user, index) => {
+            const selected = user.id === selectedUser?.id;
+            return (
+              <Pressable
+                accessibilityLabel={`${user.displayName}, ${roleLabelOf(user.role)}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                key={user.id}
+                onPress={() => {
+                  setPickerVisible(false);
+                  requestSelectUser(user.id);
+                }}
+                style={({ pressed }) => [
+                  styles.pickerRow,
+                  index > 0 && styles.borderTop,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.avatarSmall,
+                    selected && styles.avatarSmallActive,
+                  ]}
+                >
+                  <Text
+                    maxFontSizeMultiplier={1.2}
+                    style={[
+                      styles.avatarSmallText,
+                      selected && styles.avatarSmallTextActive,
+                    ]}
+                  >
+                    {initialsOf(user.displayName)}
+                  </Text>
+                </View>
+                <View style={styles.pickerCopy}>
+                  <Text
+                    maxFontSizeMultiplier={1.3}
+                    numberOfLines={1}
+                    style={styles.pickerName}
+                  >
+                    {user.displayName}
+                  </Text>
+                  <Text style={styles.pickerMeta}>
+                    {roleLabelOf(user.role)} ·{" "}
+                    {user.hasPin ? "PIN configurado" : "Sin PIN · primer acceso"}
+                  </Text>
+                </View>
                 {selected ? (
                   <MaterialCommunityIcons
                     name="check-circle"
-                    size={18}
+                    size={19}
                     color={BrandColors.greenDark}
                   />
                 ) : null}
-              </View>
-              <Text style={[styles.role, selected && styles.roleSelected]}>
-                {user.role === "administrator" ? "Administrador" : "Vendedor"}
-              </Text>
-              <Text
-                style={[styles.pinState, selected && styles.pinStateSelected]}
-              >
-                {user.hasPin ? "PIN configurado" : "Sin PIN · primer acceso"}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      <Text style={styles.notice}>
-        {selectedUser
-          ? "Operador activo. Cambia de usuario para continuar."
-          : "Selecciona un operador e ingresa su PIN para operar."}
-      </Text>
-      <View
-        accessibilityLiveRegion={authState === "error" ? "assertive" : "polite"}
-        style={styles.authRow}
-      >
-        <MaterialCommunityIcons
-          name={
-            authState === "authenticated"
-              ? "cloud-check-outline"
-              : "cloud-off-outline"
-          }
-          size={16}
-          color={
-            authState === "authenticated"
-              ? BrandColors.green
-              : BrandColors.warning
-          }
-        />
-        <View style={styles.authCopy}>
-          <Text style={styles.authState}>{authLabels[authState]}</Text>
-          {authMessage ? (
-            <Text style={styles.authMessage}>{authMessage}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <View
+          accessibilityLiveRegion={authState === "error" ? "assertive" : "polite"}
+          style={styles.authRow}
+        >
+          <MaterialCommunityIcons
+            name={
+              authState === "authenticated"
+                ? "cloud-check-outline"
+                : "cloud-off-outline"
+            }
+            size={16}
+            color={
+              authState === "authenticated"
+                ? BrandColors.green
+                : BrandColors.warning
+            }
+          />
+          <View style={styles.authCopy}>
+            <Text style={styles.authState}>{authLabels[authState]}</Text>
+            {authMessage ? (
+              <Text style={styles.authMessage}>{authMessage}</Text>
+            ) : null}
+          </View>
+          {selectedUser && isConfigured && authState !== "authenticated" ? (
+            <ActionButton
+              compact
+              label={selectedUser.authUserId ? "Renovar" : "Vincular"}
+              onPress={() => {
+                setPickerVisible(false);
+                setLinkError(null);
+                setLinkVisible(true);
+              }}
+            />
           ) : null}
         </View>
-        {selectedUser && isConfigured && authState !== "authenticated" ? (
-          <ActionButton
-            compact
-            label={selectedUser.authUserId ? "Renovar" : "Vincular"}
-            onPress={() => {
-              setLinkError(null);
-              setLinkVisible(true);
-            }}
-          />
-        ) : null}
-      </View>
+      </ModalSurface>
 
       <ModalSurface
         dialogStyle={styles.dialog}
@@ -314,16 +440,16 @@ export function OperatorSelector() {
         <View style={styles.dialogHeader}>
           <MaterialCommunityIcons
             name={requiresCreate ? "shield-key-outline" : "lock-outline"}
-            size={26}
+            size={24}
             color={BrandColors.greenDark}
           />
-          <Text style={styles.dialogTitle}>
+          <Text maxFontSizeMultiplier={1.3} style={styles.dialogTitle}>
             {requiresCreate ? "Crea tu PIN" : "Ingresa tu PIN"}
           </Text>
         </View>
         <Text style={styles.dialogSubtitle}>
           {pendingUser?.displayName} ·{" "}
-          {pendingUser?.role === "administrator" ? "Administrador" : "Vendedor"}
+          {pendingUser ? roleLabelOf(pendingUser.role) : ""}
         </Text>
         <Text style={styles.dialogHint}>
           {requiresCreate
@@ -394,10 +520,12 @@ export function OperatorSelector() {
         <View style={styles.dialogHeader}>
           <MaterialCommunityIcons
             name="account-key-outline"
-            size={26}
+            size={24}
             color={BrandColors.greenDark}
           />
-          <Text style={styles.dialogTitle}>Vincular Supabase</Text>
+          <Text maxFontSizeMultiplier={1.3} style={styles.dialogTitle}>
+            Vincular Supabase
+          </Text>
         </View>
         <Text style={styles.dialogSubtitle}>{selectedUser?.displayName}</Text>
         <Text style={styles.dialogHint}>
@@ -456,58 +584,90 @@ export function OperatorSelector() {
           />
         </View>
       </ModalSurface>
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: Spacing.xs },
-  provisioningCard: {
+  card: {
     borderWidth: 1,
     borderColor: BrandColors.line,
     borderRadius: Radius.lg,
     backgroundColor: BrandColors.white,
+    ...sharedStyles.shadow,
+  },
+  bar: {
+    minHeight: ControlSize.default,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Spacing.xs,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    color: BrandColors.greenDark,
+    ...Typography.label,
+    fontWeight: "700",
+  },
+  avatarMuted: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.goldLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  barCopy: { flex: 1 },
+  barName: { color: BrandColors.text, ...Typography.label },
+  barMeta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  barButton: { flexGrow: 0 },
+  provisioningCard: {
     padding: Spacing.lg,
     gap: Spacing.sm,
   },
-  usersRow: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs },
-  option: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 220,
-    minWidth: 190,
-    minHeight: 72,
-    borderWidth: 1,
-    borderColor: BrandColors.line,
-    borderRadius: ComponentMetrics.inputRadius,
-    backgroundColor: BrandColors.white,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: Spacing.sm,
-  },
-  optionSelected: {
-    borderColor: BrandColors.green,
-    backgroundColor: BrandColors.greenLight,
-  },
-  optionTop: {
+  pickerList: { gap: Spacing.xxs },
+  pickerRow: {
+    minHeight: ControlSize.default,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
   },
-  name: { color: BrandColors.text, ...Typography.label },
-  nameSelected: { color: BrandColors.greenDark },
-  role: {
+  pickerCopy: { flex: 1 },
+  pickerName: { color: BrandColors.text, ...Typography.label },
+  pickerMeta: {
     color: BrandColors.muted,
     ...Typography.caption,
     marginTop: Spacing.xxs,
   },
-  roleSelected: { color: BrandColors.greenDark },
-  pinState: {
+  avatarSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarSmallActive: { backgroundColor: BrandColors.greenLight },
+  avatarSmallText: {
     color: BrandColors.muted,
     ...Typography.caption,
-    marginTop: Spacing.xxs,
+    fontWeight: "700",
   },
-  pinStateSelected: { color: BrandColors.muted },
-  notice: { color: BrandColors.muted, ...Typography.caption },
+  avatarSmallTextActive: { color: BrandColors.greenDark },
+  borderTop: { borderTopWidth: 1, borderTopColor: BrandColors.line },
   authRow: {
     minHeight: ControlSize.default,
     borderRadius: Radius.md,
@@ -538,9 +698,9 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   dialogHeader: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
-  dialogTitle: { color: BrandColors.text, ...Typography.h3 },
+  dialogTitle: { color: BrandColors.text, ...Typography.h3, flex: 1 },
   dialogSubtitle: { color: BrandColors.greenDark, ...Typography.label },
-  dialogHint: { color: BrandColors.muted, ...Typography.body },
+  dialogHint: { color: BrandColors.muted, ...Typography.caption },
   modalField: { gap: Spacing.xxs },
   fieldLabel: { color: BrandColors.text, ...Typography.label },
   pinInput: {

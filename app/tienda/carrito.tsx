@@ -12,6 +12,7 @@ import { OnlineScreen } from "@/components/online-shell";
 import {
   BrandColors,
   ControlSize,
+  Elevation,
   Interaction,
   Radius,
   Spacing,
@@ -48,7 +49,7 @@ export default function CartScreen() {
           <View style={styles.footer}>
             <View>
               <Text style={styles.footerLabel}>Subtotal</Text>
-              <Text style={styles.footerTotal}>
+              <Text maxFontSizeMultiplier={1.4} style={styles.footerTotal}>
                 S/ {(subtotalCents / 100).toFixed(2)}
               </Text>
             </View>
@@ -97,8 +98,10 @@ export default function CartScreen() {
                 size={56}
               />
               <View style={styles.copy}>
-                <Text style={styles.name}>{item.product.name}</Text>
-                <Text style={styles.meta}>
+                <Text maxFontSizeMultiplier={1.4} style={styles.name}>
+                  {item.product.name}
+                </Text>
+                <Text maxFontSizeMultiplier={1.4} style={styles.meta}>
                   S/ {(item.product.priceCents / 100).toFixed(2)} por{" "}
                   {item.product.pricingQuantity}{" "}
                   {item.product.baseUnit === "gram" ? "g" : "un."}
@@ -134,7 +137,7 @@ export default function CartScreen() {
               />
               <View style={styles.lineTotalCopy}>
                 <Text style={styles.lineTotalLabel}>Subtotal</Text>
-                <Text style={styles.lineTotal}>
+                <Text maxFontSizeMultiplier={1.4} style={styles.lineTotal}>
                   S/ {(lineTotal / 100).toFixed(2)}
                 </Text>
               </View>
@@ -159,6 +162,7 @@ export default function CartScreen() {
                   ]}
                 >
                   <Text
+                    maxFontSizeMultiplier={1.3}
                     style={[
                       styles.policyText,
                       item.substitutionPolicy === policy.value &&
@@ -264,10 +268,15 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.line,
     padding: Spacing.md,
     gap: Spacing.sm,
+    ...Elevation.ambientCard,
   },
   top: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
   copy: { flex: 1 },
-  name: { color: BrandColors.text, ...Typography.bodyLarge, fontWeight: "700" },
+  name: {
+    color: BrandColors.text,
+    ...Typography.bodyLarge,
+    fontWeight: "700",
+  },
   meta: {
     color: BrandColors.muted,
     ...Typography.caption,
@@ -287,7 +296,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: Spacing.sm,
   },
-  lineTotalCopy: { alignItems: "flex-end" },
+  lineTotalCopy: { alignItems: "flex-end", flexShrink: 1 },
   lineTotalLabel: { color: BrandColors.muted, ...Typography.caption },
   lineTotal: { color: BrandColors.text, ...Typography.h3, fontWeight: "800" },
   policyTitle: { color: BrandColors.muted, ...Typography.overline },

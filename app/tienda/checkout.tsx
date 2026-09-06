@@ -1,10 +1,18 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { router, type Href } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  FlatList,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
 
 import { CommerceButton, TrustItem } from "@/components/commerce-ui";
+import { ModalSurface } from "@/components/modal-surface";
 import { OnlineScreen } from "@/components/online-shell";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
@@ -16,6 +24,7 @@ import {
   Spacing,
   Typography,
 } from "@/constants/theme";
+import { DELIVERY_DISTRICTS } from "@/constants/districts";
 import { useCart } from "@/context/cart-context";
 import { useCustomerAuth } from "@/context/customer-auth-context";
 import { formatSoles } from "@/lib/money";
@@ -23,7 +32,6 @@ import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import type { FulfillmentType, PaymentMethod } from "@/database/models";
 import type {
   OnlineCatalog,
-  OnlineDeliveryZone,
   SavedCustomerAddress,
 } from "@/online/contracts";
 import {
@@ -46,7 +54,7 @@ export default function CheckoutScreen() {
   const [selectedAddressId, setSelectedAddressId] = useState("");
   const [fulfillment, setFulfillment] = useState<FulfillmentType>("pickup");
   const [zoneId, setZoneId] = useState("");
-  const [label, setLabel] = useState("Casa");
+  const [label, setLabel] = useState("Dirección");
   const [address, setAddress] = useState("");
   const [district, setDistrict] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -57,6 +65,8 @@ export default function CheckoutScreen() {
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [zoneFeedback, setZoneFeedback] = useState<string | null>(null);
+  const [isDistrictPickerOpen, setIsDistrictPickerOpen] = useState(false);
+  const [districtQuery, setDistrictQuery] = useState("");
 
   const loadOptions = useCallback(async () => {
     setIsLoadingOptions(true);
@@ -87,13 +97,48 @@ export default function CheckoutScreen() {
 
   const zone =
     catalog?.deliveryZones.find((item) => item.id === zoneId) ?? null;
-  const zoneMatchesDistrict =
-    zone !== null &&
-    normalizeDistrict(zone.district) === normalizeDistrict(district);
   const checkoutPending =
     fulfillment === "delivery" && (isLoadingOptions || Boolean(loadError));
   const total =
     subtotalCents + (fulfillment === "delivery" ? (zone?.feeCents ?? 0) : 0);
+
+  const districtOptions = useMemo(() => {
+    const normalized = districtQuery.trim().toLocaleLowerCase("es-PE");
+    if (!normalized) return DELIVERY_DISTRICTS;
+    return DELIVERY_DISTRICTS.filter((value) =>
+      value.toLocaleLowerCase("es-PE").includes(normalized),
+    );
+  }, [districtQuery]);
+
+  const coveredDistricts = useMemo(
+    () =>
+      new Set(
+        (catalog?.deliveryZones ?? []).map((zoneItem) =>
+          normalizeDistrict(zoneItem.district),
+        ),
+      ),
+    [catalog],
+  );
+
+  const selectDistrict = (nextDistrict: string) => {
+    setIsDistrictPickerOpen(false);
+    setDistrictQuery("");
+    setSelectedAddressId("");
+    setDistrict(nextDistrict);
+    const matchingZone = catalog?.deliveryZones.find(
+      (candidate) =>
+        normalizeDistrict(candidate.district) === normalizeDistrict(nextDistrict),
+    );
+    if (matchingZone) {
+      setZoneId(matchingZone.id);
+      setZoneFeedback(null);
+    } else {
+      setZoneId("");
+      setZoneFeedback(
+        `Aún no tenemos delivery en ${nextDistrict}. Elige otro distrito o recoge en tienda.`,
+      );
+    }
+  };
 
   const selectSavedAddress = (saved: SavedCustomerAddress) => {
     setZoneId("");
@@ -120,38 +165,16 @@ export default function CheckoutScreen() {
   const changeAddress = (value: string) => {
     setSelectedAddressId("");
     setAddress(value);
-    setZoneId("");
-    setZoneFeedback(
-      value.trim()
-        ? "La dirección cambió. Vuelve a elegir la zona de delivery para confirmarla."
-        : null,
-    );
-  };
-
-  const selectDeliveryZone = (nextZone: OnlineDeliveryZone) => {
-    const districtChanged =
-      Boolean(district.trim()) &&
-      normalizeDistrict(district) !== normalizeDistrict(nextZone.district);
-    setZoneId("");
-    setSelectedAddressId("");
-    setZoneFeedback(null);
-    if (districtChanged) {
-      setAddress("");
-      setInstructions("");
-    }
-    setDistrict(nextZone.district);
-    setZoneId(nextZone.id);
   };
 
   const validation = useMemo(() => {
     if (!items.length) return "El carrito está vacío.";
+    if (fulfillment === "delivery" && !district)
+      return "Selecciona el distrito de entrega.";
     if (fulfillment === "delivery" && !zone)
-      return "Selecciona una zona de delivery.";
-    if (fulfillment === "delivery" && !zoneMatchesDistrict) {
-      return "La zona de delivery no corresponde al distrito de la dirección.";
-    }
-    if (fulfillment === "delivery" && (!address.trim() || !district.trim()))
-      return "Completa dirección y distrito.";
+      return "Aún no tenemos delivery en ese distrito.";
+    if (fulfillment === "delivery" && !address.trim())
+      return "Escribe la dirección exacta.";
     if (zone && subtotalCents < zone.minimumOrderCents)
       return `El mínimo de la zona es ${formatSoles(zone.minimumOrderCents)}.`;
     if (["yape", "plin"].includes(paymentMethod) && !reference.trim())
@@ -166,7 +189,6 @@ export default function CheckoutScreen() {
     reference,
     subtotalCents,
     zone,
-    zoneMatchesDistrict,
   ]);
 
   const submit = async () => {
@@ -319,7 +341,6 @@ export default function CheckoutScreen() {
             ) : null}
 
             <View style={styles.fieldGrid}>
-              <Field label="Etiqueta" value={label} onChangeText={setLabel} />
               <Field
                 label="Dirección exacta"
                 value={address}
@@ -333,15 +354,37 @@ export default function CheckoutScreen() {
               />
             </View>
 
-            <Text style={styles.label}>Elige tu zona</Text>
-            {isLoadingOptions ? (
+            <Text style={styles.label}>Distrito de entrega</Text>
+            <Pressable
+              accessibilityLabel="Seleccionar distrito de entrega"
+              accessibilityRole="button"
+              onPress={() => setIsDistrictPickerOpen(true)}
+              style={({ pressed }) => [
+                styles.pickerButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              <MaterialCommunityIcons
+                name="map-marker-outline"
+                size={20}
+                color={district ? BrandColors.greenDark : BrandColors.muted}
+              />
               <Text
-                accessibilityLiveRegion="polite"
-                style={styles.loadingOptions}
+                numberOfLines={1}
+                style={[
+                  styles.pickerText,
+                  !district && styles.pickerPlaceholder,
+                ]}
               >
-                Cargando zonas de delivery…
+                {district || "Selecciona tu distrito"}
               </Text>
-            ) : null}
+              <MaterialCommunityIcons
+                name="chevron-down"
+                size={20}
+                color={BrandColors.muted}
+              />
+            </Pressable>
+
             {loadError ? (
               <View
                 accessibilityLiveRegion="polite"
@@ -366,24 +409,26 @@ export default function CheckoutScreen() {
                   tone="ghost"
                 />
               </View>
-            ) : (
-              <View style={styles.zoneList}>
-                {(catalog?.deliveryZones ?? []).map((item) => (
-                  <DeliveryZoneChoice
-                    active={zoneId === item.id}
-                    key={item.id}
-                    onPress={() => selectDeliveryZone(item)}
-                    zone={item}
+            ) : null}
+            {zone ? (
+              <View style={styles.zoneSummary}>
+                <View style={styles.zoneSummaryRow}>
+                  <MaterialCommunityIcons
+                    name="moped-outline"
+                    size={20}
+                    color={BrandColors.greenDark}
                   />
-                ))}
+                  <Text style={styles.zoneSummaryName}>{zone.name}</Text>
+                  <Text style={styles.zoneSummaryFee}>
+                    S/ {(zone.feeCents / 100).toFixed(2)}
+                  </Text>
+                </View>
+                <Text style={styles.zoneSummaryMeta}>
+                  Llega en {zone.etaMinMinutes}–{zone.etaMaxMinutes} min ·
+                  mínimo {formatSoles(zone.minimumOrderCents)}
+                </Text>
               </View>
-            )}
-            <Field
-              editable={false}
-              label="Distrito"
-              value={district}
-              onChangeText={setDistrict}
-            />
+            ) : null}
             {zoneFeedback ? (
               <View
                 accessibilityLiveRegion="polite"
@@ -525,6 +570,86 @@ export default function CheckoutScreen() {
           Te avisaremos cada avance
         </TrustItem>
       </View>
+
+      <ModalSurface
+        animationType="slide"
+        onClose={() => setIsDistrictPickerOpen(false)}
+        placement="bottom"
+        visible={isDistrictPickerOpen}
+      >
+        <View style={styles.pickerHeader}>
+          <Text style={styles.pickerTitle}>Selecciona tu distrito</Text>
+          <Pressable
+            accessibilityLabel="Cerrar selector de distrito"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => setIsDistrictPickerOpen(false)}
+            style={styles.pickerClose}
+          >
+            <MaterialCommunityIcons
+              name="close"
+              size={22}
+              color={BrandColors.muted}
+            />
+          </Pressable>
+        </View>
+        <TextInput
+          accessibilityLabel="Buscar distrito"
+          autoCapitalize="words"
+          onChangeText={setDistrictQuery}
+          placeholder="Buscar distrito…"
+          style={styles.pickerSearch}
+          value={districtQuery}
+        />
+        <FlatList
+          data={districtOptions}
+          keyboardShouldPersistTaps="handled"
+          keyExtractor={(item) => item}
+          renderItem={({ item }) => {
+            const selected = item === district;
+            const covered = coveredDistricts.has(normalizeDistrict(item));
+            return (
+              <Pressable
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                onPress={() => selectDistrict(item)}
+                style={({ pressed }) => [
+                  styles.districtRow,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name="map-marker-outline"
+                  size={18}
+                  color={selected ? BrandColors.greenDark : BrandColors.muted}
+                />
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.districtText,
+                    selected && styles.districtTextActive,
+                  ]}
+                >
+                  {item}
+                </Text>
+                {covered ? (
+                  <View style={styles.coveredPill}>
+                    <Text style={styles.coveredPillText}>Delivery</Text>
+                  </View>
+                ) : null}
+                {selected ? (
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={18}
+                    color={BrandColors.greenDark}
+                  />
+                ) : null}
+              </Pressable>
+            );
+          }}
+          style={styles.districtList}
+        />
+      </ModalSurface>
     </OnlineScreen>
   );
 }
@@ -599,44 +724,6 @@ function Choice({
       <View style={[styles.radio, active && styles.radioActive]}>
         {active ? <View style={styles.radioDot} /> : null}
       </View>
-    </Pressable>
-  );
-}
-function DeliveryZoneChoice({
-  active,
-  onPress,
-  zone,
-}: {
-  active: boolean;
-  onPress: () => void;
-  zone: OnlineDeliveryZone;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ checked: active }}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.zone,
-        active && styles.zoneActive,
-        pressed && styles.pressed,
-      ]}
-    >
-      <View style={styles.zoneTop}>
-        <Text style={[styles.zoneName, active && styles.zoneNameActive]}>
-          {zone.name}
-        </Text>
-        <Text style={styles.zoneFee}>
-          S/ {(zone.feeCents / 100).toFixed(2)}
-        </Text>
-      </View>
-      <Text style={styles.zoneMeta}>
-        {zone.etaMinMinutes}–{zone.etaMaxMinutes} min · mínimo S/{" "}
-        {(zone.minimumOrderCents / 100).toFixed(2)}
-      </Text>
-      <Text numberOfLines={1} style={styles.zoneSchedule}>
-        {zone.scheduleText}
-      </Text>
     </Pressable>
   );
 }
@@ -827,8 +914,6 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     marginTop: Spacing.xxs,
   },
-  zoneList: { gap: Spacing.xs },
-  loadingOptions: { color: BrandColors.muted, ...Typography.caption },
   optionError: {
     borderRadius: Radius.md,
     backgroundColor: BrandColors.goldLight,
@@ -859,35 +944,91 @@ const styles = StyleSheet.create({
     color: BrandColors.warning,
     ...Typography.caption,
   },
-  zone: {
+  pickerButton: {
     minHeight: ControlSize.default,
-    borderRadius: Radius.md,
+    borderRadius: ComponentMetrics.inputRadius,
+    borderWidth: 1,
+    borderColor: BrandColors.lineStrong,
+    backgroundColor: BrandColors.white,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+  },
+  pickerText: {
+    flex: 1,
+    color: BrandColors.text,
+    ...Typography.body,
+  },
+  pickerPlaceholder: { color: BrandColors.muted },
+  pickerHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  pickerTitle: { color: BrandColors.text, ...Typography.h3 },
+  pickerClose: {
+    width: ControlSize.compact,
+    height: ControlSize.compact,
+    borderRadius: Radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pickerSearch: {
+    minHeight: ControlSize.default,
+    borderRadius: ComponentMetrics.inputRadius,
     borderWidth: 1,
     borderColor: BrandColors.line,
-    padding: Spacing.sm,
-    backgroundColor: BrandColors.surfaceMuted,
+    backgroundColor: BrandColors.white,
+    color: BrandColors.text,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 13,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+    ...Typography.body,
   },
-  zoneActive: {
-    borderColor: BrandColors.green,
-    backgroundColor: BrandColors.greenLight,
-  },
-  zoneTop: {
+  districtList: { maxHeight: 380 },
+  districtRow: {
+    minHeight: ControlSize.default,
     flexDirection: "row",
-    justifyContent: "space-between",
+    alignItems: "center",
+    gap: Spacing.xs,
+    borderRadius: Radius.sm,
+    paddingHorizontal: Spacing.xxs,
+  },
+  districtText: {
+    flex: 1,
+    color: BrandColors.text,
+    ...Typography.body,
+  },
+  districtTextActive: { color: BrandColors.greenDark, fontWeight: "700" },
+  coveredPill: {
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+  },
+  coveredPillText: { color: BrandColors.greenDark, ...Typography.overline, letterSpacing: 0 },
+  zoneSummary: {
+    borderRadius: Radius.md,
+    backgroundColor: BrandColors.greenLight,
+    padding: Spacing.sm,
+    gap: Spacing.xxs,
+  },
+  zoneSummaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.xs,
   },
-  zoneName: { flex: 1, color: BrandColors.text, ...Typography.label },
-  zoneNameActive: { color: BrandColors.greenDark },
-  zoneFee: { color: BrandColors.greenDark, ...Typography.label },
-  zoneMeta: {
-    color: BrandColors.muted,
-    ...Typography.caption,
-    marginTop: Spacing.xxs,
+  zoneSummaryName: {
+    flex: 1,
+    color: BrandColors.greenDark,
+    ...Typography.label,
   },
-  zoneSchedule: {
-    color: BrandColors.muted,
+  zoneSummaryFee: { color: BrandColors.greenDark, ...Typography.label },
+  zoneSummaryMeta: {
+    color: BrandColors.greenDark,
     ...Typography.caption,
-    marginTop: Spacing.xxs,
   },
   fieldGrid: { gap: Spacing.sm },
   field: { gap: Spacing.xs },

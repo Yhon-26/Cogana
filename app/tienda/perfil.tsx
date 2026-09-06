@@ -9,6 +9,7 @@ import {
   BrandColors,
   ComponentMetrics,
   ControlSize,
+  Elevation,
   Interaction,
   Radius,
   Spacing,
@@ -28,6 +29,17 @@ import {
   updateMyOnlinePreferences,
 } from "@/online/store-api";
 
+type SectionKey = "addresses" | "notifications" | "security" | "danger";
+
+function initialsFromName(name: string | undefined) {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return "C";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]?.toLocaleUpperCase("es-PE") ?? "")
+    .join("");
+}
+
 export default function CustomerProfileScreen() {
   const { account, signOut, updatePassword } = useCustomerAuth();
   const [addresses, setAddresses] = useState<SavedCustomerAddress[]>([]);
@@ -35,6 +47,7 @@ export default function CustomerProfileScreen() {
     null,
   );
   const [loaded, setLoaded] = useState(false);
+  const [openSection, setOpenSection] = useState<SectionKey | null>(null);
   const [showAddress, setShowAddress] = useState(false);
   const [label, setLabel] = useState("Casa");
   const [address, setAddress] = useState("");
@@ -145,271 +158,337 @@ export default function CustomerProfileScreen() {
     }
   };
 
+  const toggleSection = (key: SectionKey) =>
+    setOpenSection((current) => (current === key ? null : key));
+
   return (
     <OnlineScreen
       title="Mi perfil"
       subtitle="Cuenta, direcciones y seguridad"
       showBottomNav
     >
-      <View style={styles.card}>
+      <View style={styles.profileHead}>
         <View style={styles.avatar}>
-          <MaterialCommunityIcons
-            name="account"
-            size={34}
-            color={BrandColors.greenDark}
-          />
+          <Text style={styles.avatarInitials}>
+            {initialsFromName(account?.name)}
+          </Text>
         </View>
-        <Text style={styles.name}>{account?.name}</Text>
-        <Text style={styles.meta}>{account?.phone}</Text>
-        <Text style={styles.meta}>{account?.email}</Text>
+        <Text maxFontSizeMultiplier={1.3} style={styles.name}>
+          {account?.name}
+        </Text>
+        {account?.email ? <Text style={styles.meta}>{account.email}</Text> : null}
+        {account?.phone ? <Text style={styles.meta}>{account.phone}</Text> : null}
       </View>
-      <View style={styles.card}>
-        <View style={styles.titleRow}>
-          <Text style={styles.title}>Direcciones guardadas</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setShowAddress((current) => !current)}
-            style={styles.linkButton}
-          >
-            <Text style={styles.link}>
-              {showAddress ? "Cerrar" : "Agregar"}
-            </Text>
-          </Pressable>
-        </View>
-        {addresses.map((item) => (
-          <View key={item.id} style={styles.addressRow}>
-            <MaterialCommunityIcons
-              name="map-marker-outline"
-              size={20}
-              color={BrandColors.green}
-            />
-            <View style={styles.addressCopy}>
-              <Text style={styles.addressLabel}>{item.label}</Text>
-              <Text style={styles.meta}>
-                {item.address} · {item.district}
-              </Text>
-            </View>
-          </View>
-        ))}
-        {showAddress ? (
-          <View style={styles.form}>
-            <Field label="Etiqueta" value={label} onChangeText={setLabel} />
-            <Field
-              label="Dirección"
-              value={address}
-              onChangeText={setAddress}
-            />
-            <Field
-              label="Distrito"
-              value={district}
-              onChangeText={setDistrict}
-            />
-            <Field
-              label="Referencia"
-              value={instructions}
-              onChangeText={setInstructions}
-            />
+
+      <View style={styles.menu}>
+        <MenuRow
+          icon="map-marker-outline"
+          label="Mis direcciones"
+          meta={`${addresses.length} ${addresses.length === 1 ? "guardada" : "guardadas"}`}
+          open={openSection === "addresses"}
+          onPress={() => toggleSection("addresses")}
+        />
+        {openSection === "addresses" ? (
+          <View style={styles.expanded}>
+            {addresses.map((item) => (
+              <View key={item.id} style={styles.addressRow}>
+                <MaterialCommunityIcons
+                  name="map-marker-outline"
+                  size={20}
+                  color={BrandColors.green}
+                />
+                <View style={styles.addressCopy}>
+                  <Text style={styles.addressLabel}>{item.label}</Text>
+                  <Text style={styles.meta}>
+                    {item.address} · {item.district}
+                  </Text>
+                </View>
+              </View>
+            ))}
             <Pressable
               accessibilityRole="button"
-              onPress={() => void saveAddress()}
+              onPress={() => setShowAddress((current) => !current)}
               style={({ pressed }) => [
-                styles.button,
+                styles.linkButton,
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={styles.buttonText}>Guardar dirección</Text>
+              <MaterialCommunityIcons
+                name={showAddress ? "close" : "plus"}
+                size={18}
+                color={BrandColors.green}
+              />
+              <Text style={styles.link}>
+                {showAddress ? "Cerrar formulario" : "Agregar dirección"}
+              </Text>
+            </Pressable>
+            {showAddress ? (
+              <View style={styles.form}>
+                <Field label="Etiqueta" value={label} onChangeText={setLabel} />
+                <Field
+                  label="Dirección"
+                  value={address}
+                  onChangeText={setAddress}
+                />
+                <Field
+                  label="Distrito"
+                  value={district}
+                  onChangeText={setDistrict}
+                />
+                <Field
+                  label="Referencia"
+                  value={instructions}
+                  onChangeText={setInstructions}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void saveAddress()}
+                  style={({ pressed }) => [
+                    styles.button,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text style={styles.buttonText}>Guardar dirección</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        <MenuRow
+          icon="bell-outline"
+          label="Notificaciones y privacidad"
+          open={openSection === "notifications"}
+          onPress={() => toggleSection("notifications")}
+        />
+        {openSection === "notifications" ? (
+          <View style={styles.expanded}>
+            {preferences ? (
+              <>
+                <Toggle
+                  label="Estados de mis pedidos"
+                  value={preferences.orderNotifications}
+                  onChange={(value) =>
+                    void savePreferences({
+                      ...preferences,
+                      orderNotifications: value,
+                    })
+                  }
+                />
+                <Toggle
+                  label="Promociones"
+                  value={preferences.promotionNotifications}
+                  onChange={(value) =>
+                    void savePreferences({
+                      ...preferences,
+                      promotionNotifications: value,
+                    })
+                  }
+                />
+                <Toggle
+                  label="Consentimiento de marketing"
+                  value={preferences.marketingConsent}
+                  onChange={(value) =>
+                    void savePreferences({
+                      ...preferences,
+                      marketingConsent: value,
+                    })
+                  }
+                />
+              </>
+            ) : (
+              <Text style={styles.meta}>Cargando preferencias…</Text>
+            )}
+          </View>
+        ) : null}
+
+        <MenuRow
+          icon="lock-outline"
+          label="Seguridad"
+          meta="Cambiar contraseña"
+          open={openSection === "security"}
+          onPress={() => toggleSection("security")}
+        />
+        {openSection === "security" ? (
+          <View style={styles.expanded}>
+            <Field
+              label="Nueva contraseña"
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ disabled: password.length < 8 }}
+              disabled={password.length < 8}
+              onPress={() => void changePassword()}
+              style={({ pressed }) => [
+                styles.secondaryButton,
+                password.length < 8 && styles.disabled,
+                pressed && password.length >= 8 && styles.pressed,
+              ]}
+            >
+              <Text style={styles.secondaryText}>
+                {password.length < 8 && password.length > 0
+                  ? "Minimo 8 caracteres"
+                  : "Cambiar contraseña"}
+              </Text>
             </Pressable>
           </View>
         ) : null}
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Notificaciones y privacidad</Text>
-        {preferences ? (
-          <>
-            <Toggle
-              label="Estados de mis pedidos"
-              value={preferences.orderNotifications}
-              onChange={(value) =>
-                void savePreferences({
-                  ...preferences,
-                  orderNotifications: value,
-                })
-              }
-            />
-            <Toggle
-              label="Promociones"
-              value={preferences.promotionNotifications}
-              onChange={(value) =>
-                void savePreferences({
-                  ...preferences,
-                  promotionNotifications: value,
-                })
-              }
-            />
-            <Toggle
-              label="Consentimiento de marketing"
-              value={preferences.marketingConsent}
-              onChange={(value) =>
-                void savePreferences({
-                  ...preferences,
-                  marketingConsent: value,
-                })
-              }
-            />
-          </>
-        ) : null}
-      </View>
-      <View style={styles.card}>
-        <Text style={styles.title}>Seguridad</Text>
-        <Field
-          label="Nueva contraseña"
-          autoCapitalize="none"
-          autoCorrect={false}
-          secureTextEntry
-          value={password}
-          onChangeText={setPassword}
+
+        <MenuRow
+          icon="storefront-outline"
+          label="Compra para mi negocio"
+          meta="Precios por volumen y cotizaciones"
+          onPress={() => router.push("/negocio" as Href)}
         />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityState={{ disabled: password.length < 8 }}
-          disabled={password.length < 8}
-          onPress={() => void changePassword()}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            password.length < 8 && styles.disabled,
-            pressed && password.length >= 8 && styles.pressed,
-          ]}
-        >
-          <Text style={styles.secondaryText}>
-            {password.length < 8 && password.length > 0
-              ? "Minimo 8 caracteres"
-              : "Cambiar contraseña"}
-          </Text>
-        </Pressable>
-      </View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.push("/negocio" as Href)}
-        style={({ pressed }) => [styles.business, pressed && styles.pressed]}
-      >
-        <MaterialCommunityIcons
-          name="storefront-outline"
-          size={22}
-          color={BrandColors.greenDark}
+        <MenuRow
+          icon="lifebuoy"
+          label="Centro de ayuda"
+          meta="Preguntas frecuentes y solicitudes"
+          onPress={() => router.push("/tienda/ayuda" as Href)}
         />
-        <View style={styles.addressCopy}>
-          <Text style={styles.title}>Compra para mi negocio</Text>
-          <Text style={styles.meta}>
-            Restaurantes, precios por volumen y cotizaciones.
-          </Text>
-        </View>
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={21}
-          color={BrandColors.greenDark}
+
+        <MenuRow
+          danger
+          icon="logout"
+          label="Cerrar sesión"
+          onPress={() => void signOut().then(() => router.replace("/"))}
         />
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => router.push("/tienda/ayuda" as Href)}
-        style={({ pressed }) => [styles.business, pressed && styles.pressed]}
-      >
-        <MaterialCommunityIcons
-          name="lifebuoy"
-          size={22}
-          color={BrandColors.greenDark}
+        <MenuRow
+          danger
+          icon="alert-octagon"
+          label="Eliminar mi cuenta"
+          open={openSection === "danger"}
+          onPress={() => toggleSection("danger")}
         />
-        <View style={styles.addressCopy}>
-          <Text style={styles.title}>Centro de ayuda</Text>
-          <Text style={styles.meta}>
-            Preguntas frecuentes y mis solicitudes.
-          </Text>
-        </View>
-        <MaterialCommunityIcons
-          name="chevron-right"
-          size={21}
-          color={BrandColors.greenDark}
-        />
-      </Pressable>
-      <View style={[styles.card, styles.dangerCard]}>
-        <Text style={styles.title}>Eliminar mi cuenta</Text>
-        <Text style={styles.meta}>
-          Anonimiza tus datos personales, desactiva todos tus accesos y solicita
-          el borrado seguro de la identidad. Los comprobantes legales se
-          conservan sin tus datos de contacto.
-        </Text>
-        {showDeleteAccount ? (
-          <>
-            <Field
-              autoCapitalize="characters"
-              label='Escribe "ELIMINAR"'
-              value={deleteConfirmation}
-              onChangeText={setDeleteConfirmation}
-            />
-            <View style={styles.deleteActions}>
+        {openSection === "danger" ? (
+          <View style={[styles.expanded, styles.expandedDanger]}>
+            <Text style={styles.meta}>
+              Anonimiza tus datos personales, desactiva todos tus accesos y
+              solicita el borrado seguro de la identidad. Los comprobantes
+              legales se conservan sin tus datos de contacto.
+            </Text>
+            {showDeleteAccount ? (
+              <>
+                <Field
+                  autoCapitalize="characters"
+                  label='Escribe "ELIMINAR"'
+                  value={deleteConfirmation}
+                  onChangeText={setDeleteConfirmation}
+                />
+                <View style={styles.deleteActions}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setShowDeleteAccount(false);
+                      setDeleteConfirmation("");
+                    }}
+                    style={({ pressed }) => [
+                      styles.secondaryButton,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.secondaryText}>Cancelar</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      busy: isDeleting,
+                      disabled:
+                        deleteConfirmation !== "ELIMINAR" || isDeleting,
+                    }}
+                    disabled={deleteConfirmation !== "ELIMINAR" || isDeleting}
+                    onPress={() => void deleteAccount()}
+                    style={({ pressed }) => [
+                      styles.deleteButton,
+                      (deleteConfirmation !== "ELIMINAR" || isDeleting) &&
+                        styles.disabled,
+                      pressed &&
+                        deleteConfirmation === "ELIMINAR" &&
+                        !isDeleting &&
+                        styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.deleteConfirmText}>
+                      {isDeleting ? "Eliminando…" : "Eliminar definitivamente"}
+                    </Text>
+                  </Pressable>
+                </View>
+              </>
+            ) : (
               <Pressable
                 accessibilityRole="button"
-                onPress={() => {
-                  setShowDeleteAccount(false);
-                  setDeleteConfirmation("");
-                }}
+                onPress={() => setShowDeleteAccount(true)}
                 style={({ pressed }) => [
-                  styles.secondaryButton,
+                  styles.deleteOutline,
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={styles.secondaryText}>Cancelar</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{
-                  busy: isDeleting,
-                  disabled: deleteConfirmation !== "ELIMINAR" || isDeleting,
-                }}
-                disabled={deleteConfirmation !== "ELIMINAR" || isDeleting}
-                onPress={() => void deleteAccount()}
-                style={({ pressed }) => [
-                  styles.deleteButton,
-                  (deleteConfirmation !== "ELIMINAR" || isDeleting) &&
-                    styles.disabled,
-                  pressed &&
-                    deleteConfirmation === "ELIMINAR" &&
-                    !isDeleting &&
-                    styles.pressed,
-                ]}
-              >
-                <Text style={styles.deleteConfirmText}>
-                  {isDeleting ? "Eliminando…" : "Eliminar definitivamente"}
+                <Text style={styles.deleteButtonText}>
+                  Iniciar eliminación
                 </Text>
               </Pressable>
-            </View>
-          </>
-        ) : (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setShowDeleteAccount(true)}
-            style={({ pressed }) => [
-              styles.deleteOutline,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.deleteButtonText}>Iniciar eliminación</Text>
-          </Pressable>
-        )}
+            )}
+          </View>
+        ) : null}
       </View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => void signOut().then(() => router.replace("/"))}
-        style={({ pressed }) => [styles.logout, pressed && styles.pressed]}
-      >
-        <MaterialCommunityIcons
-          name="logout"
-          size={19}
-          color={BrandColors.danger}
-        />
-        <Text style={styles.logoutText}>Cerrar sesión</Text>
-      </Pressable>
     </OnlineScreen>
+  );
+}
+
+function MenuRow({
+  danger = false,
+  icon,
+  label,
+  meta,
+  open = false,
+  onPress,
+}: {
+  danger?: boolean;
+  icon: keyof typeof MaterialCommunityIcons.glyphMap;
+  label: string;
+  meta?: string;
+  open?: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityState={{ expanded: open }}
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.menuRow,
+        open && styles.menuRowOpen,
+        pressed && styles.pressed,
+      ]}
+    >
+      <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>
+        <MaterialCommunityIcons
+          name={icon}
+          size={20}
+          color={danger ? BrandColors.danger : BrandColors.greenDark}
+        />
+      </View>
+      <View style={styles.menuCopy}>
+        <Text
+          maxFontSizeMultiplier={1.3}
+          style={[styles.menuLabel, danger && styles.menuLabelDanger]}
+        >
+          {label}
+        </Text>
+        {meta ? <Text style={styles.menuMeta}>{meta}</Text> : null}
+      </View>
+      <MaterialCommunityIcons
+        name={open ? "chevron-down" : "chevron-right"}
+        size={21}
+        color={danger ? BrandColors.danger : BrandColors.muted}
+      />
+    </Pressable>
   );
 }
 
@@ -422,6 +501,7 @@ function Field({
       <Text style={styles.fieldLabel}>{label}</Text>
       <TextInput
         accessibilityLabel={label}
+        maxFontSizeMultiplier={1.5}
         {...props}
         placeholderTextColor={BrandColors.muted}
         style={styles.input}
@@ -446,7 +526,9 @@ function Toggle({
       onPress={() => onChange(!value)}
       style={({ pressed }) => [styles.toggleRow, pressed && styles.pressed]}
     >
-      <Text style={styles.toggleLabel}>{label}</Text>
+      <Text maxFontSizeMultiplier={1.3} style={styles.toggleLabel}>
+        {label}
+      </Text>
       <View style={[styles.toggle, value && styles.toggleActive]}>
         <View style={[styles.knob, value && styles.knobActive]} />
       </View>
@@ -454,48 +536,88 @@ function Toggle({
   );
 }
 const styles = StyleSheet.create({
-  card: {
+  profileHead: {
+    alignItems: "center",
+    gap: Spacing.xxs,
+    paddingVertical: Spacing.md,
+  },
+  avatar: {
+    width: 84,
+    height: 84,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    borderWidth: 3,
+    borderColor: BrandColors.white,
+    alignItems: "center",
+    justifyContent: "center",
+    ...Elevation.ambientCard,
+  },
+  avatarInitials: { color: BrandColors.greenDark, ...Typography.h1 },
+  name: { color: BrandColors.text, ...Typography.h3, marginTop: Spacing.xxs },
+  meta: { color: BrandColors.muted, ...Typography.caption },
+  menu: {
     borderRadius: Radius.lg,
     backgroundColor: BrandColors.white,
     borderWidth: 1,
     borderColor: BrandColors.line,
-    padding: Spacing.md,
-    gap: Spacing.xs,
+    ...Elevation.ambientCard,
   },
-  avatar: {
-    width: 62,
-    height: 62,
-    borderRadius: Radius.xl,
+  menuRow: {
+    minHeight: ControlSize.large - 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.line,
+  },
+  menuRowOpen: { borderTopColor: "transparent" },
+  menuIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.sm,
     backgroundColor: BrandColors.greenLight,
     alignItems: "center",
     justifyContent: "center",
   },
-  name: { color: BrandColors.text, ...Typography.h3 },
-  meta: { color: BrandColors.muted, ...Typography.caption },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  menuIconDanger: { backgroundColor: BrandColors.dangerLight },
+  menuCopy: { flex: 1 },
+  menuLabel: { color: BrandColors.text, ...Typography.label },
+  menuLabelDanger: { color: BrandColors.danger },
+  menuMeta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: 2,
   },
-  title: { color: BrandColors.text, ...Typography.label },
-  linkButton: {
-    minWidth: ControlSize.default,
-    minHeight: ControlSize.default,
-    alignItems: "center",
-    justifyContent: "center",
+  expanded: {
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.line,
+    paddingTop: Spacing.sm,
   },
-  link: { color: BrandColors.green, ...Typography.label },
+  expandedDanger: { backgroundColor: BrandColors.dangerLight },
   addressRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: BrandColors.line,
-    paddingTop: Spacing.xs,
   },
   addressCopy: { flex: 1 },
   addressLabel: { color: BrandColors.text, ...Typography.label },
-  form: { gap: Spacing.xs, marginTop: Spacing.xxs },
+  linkButton: {
+    minHeight: ControlSize.default,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.xxs,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: BrandColors.green,
+  },
+  link: { color: BrandColors.greenDark, ...Typography.label },
+  form: { gap: Spacing.xs },
   field: { gap: Spacing.xxs },
   fieldLabel: { color: BrandColors.text, ...Typography.label },
   input: {
@@ -505,6 +627,10 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.lineStrong,
     color: BrandColors.text,
     paddingHorizontal: Spacing.sm,
+    paddingVertical: 13,
+    includeFontPadding: false,
+    textAlignVertical: "center",
+    backgroundColor: BrandColors.white,
     ...Typography.body,
   },
   button: {
@@ -520,39 +646,19 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: BrandColors.green,
+    backgroundColor: BrandColors.white,
     alignItems: "center",
     justifyContent: "center",
   },
   secondaryText: { color: BrandColors.greenDark, ...Typography.label },
   disabled: { opacity: Interaction.disabledOpacity },
-  business: {
-    minHeight: 68,
-    borderRadius: Radius.lg,
-    backgroundColor: BrandColors.greenLight,
-    borderWidth: 1,
-    borderColor: BrandColors.green,
-    padding: Spacing.md,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
-  },
-  logout: {
-    minHeight: ControlSize.default,
-    borderRadius: Radius.md,
-    backgroundColor: BrandColors.dangerLight,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.xs,
-  },
-  logoutText: { color: BrandColors.danger, ...Typography.label },
-  dangerCard: { borderColor: BrandColors.danger },
   deleteActions: { flexDirection: "row", gap: Spacing.xs },
   deleteOutline: {
     minHeight: ControlSize.default,
     borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: BrandColors.danger,
+    backgroundColor: BrandColors.white,
     alignItems: "center",
     justifyContent: "center",
   },

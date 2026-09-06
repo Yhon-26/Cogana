@@ -98,12 +98,19 @@ export default function CatalogAdminScreen() {
       setHistory([]);
       return;
     }
-    const [nextPresentations, nextHistory] = await Promise.all([
-      listAllProductPresentations(database, DEFAULT_STORE_ID, productId),
-      listPriceHistory(database, DEFAULT_STORE_ID, productId),
-    ]);
-    setPresentations(nextPresentations);
-    setHistory(nextHistory);
+    try {
+      const [nextPresentations, nextHistory] = await Promise.all([
+        listAllProductPresentations(database, DEFAULT_STORE_ID, productId),
+        listPriceHistory(database, DEFAULT_STORE_ID, productId),
+      ]);
+      setPresentations(nextPresentations);
+      setHistory(nextHistory);
+    } catch (caughtError) {
+      Alert.alert(
+        "No se pudo cargar el detalle del producto",
+        getOperatorErrorMessage(caughtError, "Intenta nuevamente."),
+      );
+    }
   }, [database, productId]);
   useFocusEffect(useCallback(() => void refreshDetail(), [refreshDetail]));
 

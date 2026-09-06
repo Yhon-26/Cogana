@@ -89,19 +89,26 @@ export default function DeliveriesScreen() {
   const [supportPhone, setSupportPhone] = useState("");
 
   const load = useCallback(async () => {
-    const driverFilter =
-      selectedUser?.role === "administrator" ? undefined : selectedUser?.id;
-    setAssignments(
-      await listDeliveryAssignments(database, DEFAULT_STORE_ID, driverFilter),
-    );
-    if (selectedUser?.role === "administrator") {
-      try {
-        setOperators(await listDeliveryOperators());
-      } catch {
-        setOperators([]);
+    try {
+      const driverFilter =
+        selectedUser?.role === "administrator" ? undefined : selectedUser?.id;
+      setAssignments(
+        await listDeliveryAssignments(database, DEFAULT_STORE_ID, driverFilter),
+      );
+      if (selectedUser?.role === "administrator") {
+        try {
+          setOperators(await listDeliveryOperators());
+        } catch {
+          setOperators([]);
+        }
       }
+      await refreshOrders(false);
+    } catch (caughtError) {
+      Alert.alert(
+        "No se pudieron cargar los repartos",
+        getOperatorErrorMessage(caughtError, "Intenta nuevamente."),
+      );
     }
-    await refreshOrders(false);
   }, [database, refreshOrders, selectedUser?.id, selectedUser?.role]);
   useFocusEffect(useCallback(() => void load(), [load]));
 

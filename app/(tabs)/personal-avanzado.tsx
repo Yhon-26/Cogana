@@ -78,14 +78,21 @@ export default function AdvancedPersonnelScreen() {
   const canManage = selectedUser?.role === "administrator";
 
   const load = useCallback(async () => {
-    const [nextPermissions, nextShifts, nextAttendance] = await Promise.all([
-      listRolePermissions(database, DEFAULT_STORE_ID),
-      listWorkShifts(database, DEFAULT_STORE_ID),
-      listAttendance(database, DEFAULT_STORE_ID),
-    ]);
-    setPermissions(nextPermissions);
-    setShifts(nextShifts);
-    setAttendance(nextAttendance);
+    try {
+      const [nextPermissions, nextShifts, nextAttendance] = await Promise.all([
+        listRolePermissions(database, DEFAULT_STORE_ID),
+        listWorkShifts(database, DEFAULT_STORE_ID),
+        listAttendance(database, DEFAULT_STORE_ID),
+      ]);
+      setPermissions(nextPermissions);
+      setShifts(nextShifts);
+      setAttendance(nextAttendance);
+    } catch (caughtError) {
+      Alert.alert(
+        "No se pudo cargar el personal avanzado",
+        getOperatorErrorMessage(caughtError, "Intenta nuevamente."),
+      );
+    }
   }, [database]);
   useFocusEffect(useCallback(() => void load(), [load]));
 

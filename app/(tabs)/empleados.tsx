@@ -61,7 +61,14 @@ export default function EmployeesScreen() {
   const canManage = selectedUser?.role === "administrator";
 
   const load = useCallback(async () => {
-    setUsers(await listLocalUsers(database, DEFAULT_STORE_ID));
+    try {
+      setUsers(await listLocalUsers(database, DEFAULT_STORE_ID));
+    } catch (caughtError) {
+      Alert.alert(
+        "No se pudo cargar el personal",
+        getOperatorErrorMessage(caughtError, "Intenta nuevamente."),
+      );
+    }
   }, [database]);
   useFocusEffect(useCallback(() => void load(), [load]));
 

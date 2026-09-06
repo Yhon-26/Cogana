@@ -593,25 +593,29 @@ function LoadingLeaves({ color }: { color: string }) {
   const leaf3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    let isMounted = true;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const loops: Animated.CompositeAnimation[] = [];
     const startAnim = (anim: Animated.Value, delay: number) => {
-      setTimeout(() => {
-        if (!isMounted) return;
-        Animated.loop(
-          Animated.sequence([
-            Animated.timing(anim, {
-              toValue: 1,
-              duration: 750,
-              useNativeDriver: true,
-            }),
-            Animated.timing(anim, {
-              toValue: 0,
-              duration: 750,
-              useNativeDriver: true,
-            }),
-          ])
-        ).start();
-      }, delay);
+      timers.push(
+        setTimeout(() => {
+          const loop = Animated.loop(
+            Animated.sequence([
+              Animated.timing(anim, {
+                toValue: 1,
+                duration: 750,
+                useNativeDriver: true,
+              }),
+              Animated.timing(anim, {
+                toValue: 0,
+                duration: 750,
+                useNativeDriver: true,
+              }),
+            ])
+          );
+          loops.push(loop);
+          loop.start();
+        }, delay)
+      );
     };
 
     startAnim(leaf1, 0);
@@ -619,7 +623,8 @@ function LoadingLeaves({ color }: { color: string }) {
     startAnim(leaf3, 600);
 
     return () => {
-      isMounted = false;
+      timers.forEach(clearTimeout);
+      loops.forEach((loop) => loop.stop());
     };
   }, [leaf1, leaf2, leaf3]);
 

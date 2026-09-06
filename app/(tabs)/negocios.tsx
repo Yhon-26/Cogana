@@ -1,19 +1,30 @@
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 
 import {
+  ActionButton,
   AdminScreen,
   Pill,
+  PrimaryButton,
   SectionTitle,
   sharedStyles,
 } from "@/components/admin-ui";
-import { OperatorSelector } from "@/components/operator-selector";
+import { ModalSurface } from "@/components/modal-surface";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   BrandColors,
-  ComponentMetrics,
   ControlSize,
+  Elevation,
   Interaction,
   Radius,
   Spacing,
@@ -24,6 +35,7 @@ import {
   calculateLineTotalCents,
   parseDecimalToInteger,
 } from "@/database/integer-calculations";
+import type { ProductRecord } from "@/database/models";
 import {
   listBusinessOperations,
   respondBusinessQuote,
@@ -48,9 +60,99 @@ const businessStatusLabels: Record<BusinessAccount["status"], string> = {
   suspended: "Suspendida",
 };
 
+function ProductPicker({
+  products,
+  selectedId,
+  onSelect,
+}: {
+  products: ProductRecord[];
+  selectedId: string;
+  onSelect: (productId: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    const normalized = query.trim().toLocaleLowerCase("es-PE");
+    if (!normalized) return products;
+    return products.filter((product) =>
+      `${product.name} ${product.sku}`
+        .toLocaleLowerCase("es-PE")
+        .includes(normalized),
+    );
+  }, [products, query]);
+
+  return (
+    <View style={styles.picker}>
+      <View style={styles.searchWrap}>
+        <MaterialCommunityIcons
+          name="magnify"
+          size={19}
+          color={BrandColors.muted}
+        />
+        <TextInput
+          accessibilityLabel="Buscar producto"
+          placeholder="Buscar producto o código"
+          placeholderTextColor={BrandColors.muted}
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+        />
+      </View>
+      <ScrollView
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        style={styles.pickerList}
+      >
+        {filtered.length === 0 ? (
+          <Text style={styles.pickerEmpty}>Sin productos para la búsqueda.</Text>
+        ) : (
+          filtered.map((product, index) => {
+            const selected = product.id === selectedId;
+            return (
+              <Pressable
+                accessibilityLabel={`Seleccionar ${product.name}`}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: selected }}
+                key={product.id}
+                onPress={() => onSelect(product.id)}
+                style={[
+                  styles.pickerRow,
+                  index > 0 && styles.borderTop,
+                  selected && styles.pickerRowSelected,
+                ]}
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[
+                    styles.pickerName,
+                    selected && styles.pickerNameSelected,
+                  ]}
+                >
+                  {product.name}
+                </Text>
+                <Text style={styles.pickerMeta}>
+                  {product.baseUnit === "gram" ? "pesable" : "unidad"}
+                </Text>
+                {selected ? (
+                  <MaterialCommunityIcons
+                    name="check-circle"
+                    size={18}
+                    color={BrandColors.greenDark}
+                  />
+                ) : null}
+              </Pressable>
+            );
+          })
+        )}
+      </ScrollView>
+    </View>
+  );
+}
+
 export default function BusinessOperationsScreen() {
   const { selectedUser } = useLocalOperator();
   const { products } = useLocalProducts();
+  const { height } = useWindowDimensions();
+  const sheetMaxHeight = Math.round(height * 0.88);
   const [accounts, setAccounts] = useState<BusinessAccount[]>([]);
   const [quotes, setQuotes] = useState<BusinessQuote[]>([]);
   const [credit, setCredit] = useState<Record<string, string>>({});
@@ -64,8 +166,15 @@ export default function BusinessOperationsScreen() {
   const [agreedPrice, setAgreedPrice] = useState("");
   const [priceValidUntil, setPriceValidUntil] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [detail, setDetail] = useState<BusinessAccount | null>(null);
+  const [quoteDetail, setQuoteDetail] = useState<BusinessQuote | null>(null);
+  const [priceVisible, setPriceVisible] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const canManage = selectedUser?.role === "administrator";
 
   const load = useCallback(async () => {
+    setIsLoading(true);
     try {
       setError(null);
       const data = await listBusinessOperations();
@@ -78,14 +187,20 @@ export default function BusinessOperationsScreen() {
           "No se pudo cargar la información. Intenta nuevamente.",
         ),
       );
+    } finally {
+      setIsLoading(false);
     }
   }, []);
   useFocusEffect(useCallback(() => void load(), [load]));
+
+  const pendingQuotes = quotes.filter((quote) => quote.status === "requested");
 
   const review = async (
     account: BusinessAccount,
     status: "approved" | "rejected" | "suspended",
   ) => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const creditLimitCents =
         parseDecimalToInteger(credit[account.id] ?? "0", 2) ?? 0;
@@ -96,6 +211,7 @@ export default function BusinessOperationsScreen() {
         creditLimitCents,
         paymentTermsDays,
       });
+      setDetail(null);
       await load();
     } catch (caughtError) {
       Alert.alert(
@@ -105,10 +221,14 @@ export default function BusinessOperationsScreen() {
           "Revisa los datos e intenta nuevamente.",
         ),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const respond = async (quote: BusinessQuote) => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const items = quote.items.map((item) => {
         const priceCents = parseDecimalToInteger(
@@ -134,7 +254,12 @@ export default function BusinessOperationsScreen() {
         adminNotes: notes[quote.id] ?? "",
         items,
       });
+      setQuoteDetail(null);
       await load();
+      Alert.alert(
+        "Propuesta enviada",
+        "La cotización quedó respondida para el negocio.",
+      );
     } catch (caughtError) {
       Alert.alert(
         "No se pudo responder",
@@ -143,10 +268,14 @@ export default function BusinessOperationsScreen() {
           "Revisa los datos e intenta nuevamente.",
         ),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const savePrice = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       const product = products.find(
         (candidate) => candidate.id === priceProductId,
@@ -171,6 +300,7 @@ export default function BusinessOperationsScreen() {
       setMinimumQuantity("");
       setAgreedPrice("");
       setPriceValidUntil("");
+      setPriceVisible(false);
       Alert.alert(
         "Precio guardado",
         "La condición ya aparece en la cuenta comercial.",
@@ -183,270 +313,668 @@ export default function BusinessOperationsScreen() {
           "Revisa los datos e intenta nuevamente.",
         ),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  const approvedAccounts = accounts.filter(
+    (account) => account.status === "approved",
+  );
 
   return (
     <AdminScreen
       title="Negocios"
       subtitle="Aprobaciones y cotizaciones mayoristas"
-    >
-      <OperatorSelector />
-      {error ? (
-        <Text
-          accessibilityLiveRegion="assertive"
-          accessibilityRole="alert"
-          style={styles.error}
-        >
-          {error}
-        </Text>
-      ) : null}
-      <SectionTitle
-        action={<Pill label={`${accounts.length}`} tone="neutral" />}
-      >
-        Cuentas comerciales
-      </SectionTitle>
-      {accounts.map((account) => (
-        <View key={account.id} style={[sharedStyles.card, styles.card]}>
-          <View style={styles.top}>
-            <View style={styles.fill}>
-              <Text style={styles.title}>
-                {account.tradeName ?? account.legalName}
-              </Text>
-              <Text style={styles.meta}>
-                RUC {account.taxId} · {businessTypeLabels[account.businessType]}
-              </Text>
-            </View>
-            <Pill
-              label={businessStatusLabels[account.status]}
-              tone={account.status === "approved" ? "green" : "gold"}
+      right={
+        canManage ? (
+          <Pressable
+            accessibilityLabel="Nuevo precio acordado"
+            accessibilityRole="button"
+            style={styles.addHeader}
+            onPress={() => {
+              setPriceAccountId("");
+              setPriceProductId("");
+              setMinimumQuantity("");
+              setAgreedPrice("");
+              setPriceValidUntil("");
+              setPriceVisible(true);
+            }}
+          >
+            <MaterialCommunityIcons
+              name="plus"
+              size={23}
+              color={BrandColors.white}
             />
+          </Pressable>
+        ) : null
+      }
+    >
+      {!selectedUser ? (
+        <View style={[sharedStyles.card, styles.operatorNotice]}>
+          <MaterialCommunityIcons
+            name="account-key-outline"
+            size={22}
+            color={BrandColors.warning}
+          />
+          <View style={styles.operatorNoticeCopy}>
+            <Text style={styles.operatorNoticeTitle}>Falta tu operador</Text>
+            <Text style={styles.operatorNoticeText}>
+              Activa tu perfil con PIN en la pestaña Más para revisar cuentas.
+            </Text>
           </View>
-          {selectedUser?.role === "administrator" ? (
-            <>
-              <View style={styles.row}>
-                <TextInput
-                  accessibilityLabel={`Línea de crédito para ${account.tradeName ?? account.legalName}`}
-                  keyboardType="decimal-pad"
-                  placeholder="Línea S/"
-                  placeholderTextColor={BrandColors.muted}
-                  style={styles.input}
-                  value={credit[account.id] ?? ""}
-                  onChangeText={(value) =>
-                    setCredit((current) => ({
-                      ...current,
-                      [account.id]: value,
-                    }))
-                  }
-                />
-                <TextInput
-                  accessibilityLabel={`Plazo en días para ${account.tradeName ?? account.legalName}`}
-                  keyboardType="number-pad"
-                  placeholder="Plazo días"
-                  placeholderTextColor={BrandColors.muted}
-                  style={styles.input}
-                  value={terms[account.id] ?? ""}
-                  onChangeText={(value) =>
-                    setTerms((current) => ({ ...current, [account.id]: value }))
-                  }
-                />
-              </View>
-              <View style={styles.row}>
-                <Pressable
-                  accessibilityLabel={`Rechazar ${account.tradeName ?? account.legalName}`}
-                  accessibilityRole="button"
-                  onPress={() => void review(account, "rejected")}
-                  style={styles.secondary}
-                >
-                  <Text style={styles.dangerText}>Rechazar</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityLabel={`Aprobar ${account.tradeName ?? account.legalName}`}
-                  accessibilityRole="button"
-                  onPress={() => void review(account, "approved")}
-                  style={styles.primary}
-                >
-                  <Text style={styles.primaryText}>Aprobar</Text>
-                </Pressable>
-              </View>
-            </>
-          ) : null}
         </View>
-      ))}
-      {selectedUser?.role === "administrator" ? (
+      ) : null}
+
+      {isLoading ? (
+        <View style={[sharedStyles.card, styles.feedback]}>
+          <Text style={styles.muted}>Cargando cuentas comerciales…</Text>
+        </View>
+      ) : error ? (
+        <View style={[sharedStyles.card, styles.feedback]}>
+          <Text accessibilityRole="alert" style={styles.error}>
+            {error}
+          </Text>
+          <PrimaryButton label="Reintentar" onPress={() => void load()} />
+        </View>
+      ) : (
         <>
-          <SectionTitle>Nuevo precio acordado</SectionTitle>
-          <View style={[sharedStyles.card, styles.card]}>
-            <Text style={styles.meta}>NEGOCIO</Text>
-            <View style={styles.chips}>
-              {accounts
-                .filter((account) => account.status === "approved")
-                .map((account) => (
-                  <Pressable
-                    accessibilityRole="radio"
-                    accessibilityState={{
-                      checked: priceAccountId === account.id,
-                    }}
-                    key={account.id}
-                    onPress={() => setPriceAccountId(account.id)}
-                    style={[
-                      styles.chip,
-                      priceAccountId === account.id && styles.chipActive,
-                    ]}
-                  >
-                    <Text style={styles.chipText}>
-                      {account.tradeName ?? account.legalName}
-                    </Text>
-                  </Pressable>
-                ))}
-            </View>
-            <Text style={styles.meta}>PRODUCTO</Text>
-            <View style={styles.chips}>
-              {products.map((product) => (
+          <SectionTitle
+            action={<Pill label={`${accounts.length}`} tone="neutral" />}
+          >
+            Cuentas comerciales
+          </SectionTitle>
+          {accounts.length ? (
+            <View style={styles.list}>
+              {accounts.map((account) => (
                 <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{
-                    checked: priceProductId === product.id,
-                  }}
-                  key={product.id}
-                  onPress={() => setPriceProductId(product.id)}
-                  style={[
-                    styles.chip,
-                    priceProductId === product.id && styles.chipActive,
+                  accessibilityLabel={`Abrir cuenta ${account.tradeName ?? account.legalName}`}
+                  accessibilityRole="button"
+                  key={account.id}
+                  onPress={() => setDetail(account)}
+                  style={({ pressed }) => [
+                    sharedStyles.card,
+                    styles.row,
+                    pressed && styles.pressed,
                   ]}
                 >
-                  <Text style={styles.chipText}>{product.name}</Text>
+                  <View style={styles.rowIcon}>
+                    <MaterialCommunityIcons
+                      name={
+                        account.businessType === "restaurant"
+                          ? "silverware-fork-knife"
+                          : "warehouse"
+                      }
+                      size={20}
+                      color={BrandColors.green}
+                    />
+                  </View>
+                  <View style={styles.rowCopy}>
+                    <View style={styles.rowTop}>
+                      <Text
+                        maxFontSizeMultiplier={1.3}
+                        numberOfLines={1}
+                        style={styles.title}
+                      >
+                        {account.tradeName ?? account.legalName}
+                      </Text>
+                      <Pill
+                        label={businessStatusLabels[account.status]}
+                        tone={
+                          account.status === "approved"
+                            ? "green"
+                            : account.status === "rejected" ||
+                                account.status === "suspended"
+                              ? "danger"
+                              : "gold"
+                        }
+                      />
+                    </View>
+                    <Text numberOfLines={1} style={styles.meta}>
+                      RUC {account.taxId} ·{" "}
+                      {businessTypeLabels[account.businessType]}
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={18}
+                    color={BrandColors.muted}
+                  />
                 </Pressable>
               ))}
             </View>
-            <View style={styles.row}>
-              <TextInput
-                keyboardType="decimal-pad"
-                placeholder="Mínimo kg/un."
-                accessibilityLabel="Cantidad mínima acordada"
-                placeholderTextColor={BrandColors.muted}
-                style={styles.input}
-                value={minimumQuantity}
-                onChangeText={setMinimumQuantity}
+          ) : (
+            <View style={[sharedStyles.card, styles.sectionEmpty]}>
+              <MaterialCommunityIcons
+                name="warehouse"
+                size={24}
+                color={BrandColors.muted}
               />
-              <TextInput
-                keyboardType="decimal-pad"
-                placeholder="Precio S/"
-                accessibilityLabel="Precio acordado"
-                placeholderTextColor={BrandColors.muted}
-                style={styles.input}
-                value={agreedPrice}
-                onChangeText={setAgreedPrice}
-              />
+              <Text style={styles.muted}>
+                Aún no hay cuentas de restaurantes ni mayoristas.
+              </Text>
             </View>
-            <TextInput
-              placeholder="Vigencia ISO (opcional)"
-              accessibilityLabel="Vigencia del precio acordado"
-              placeholderTextColor={BrandColors.muted}
-              style={styles.fullInput}
-              value={priceValidUntil}
-              onChangeText={setPriceValidUntil}
-            />
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => void savePrice()}
-              style={styles.primary}
-            >
-              <Text style={styles.primaryText}>Guardar precio</Text>
-            </Pressable>
-          </View>
+          )}
+
+          <SectionTitle
+            action={<Pill label={`${pendingQuotes.length}`} tone="gold" />}
+          >
+            Cotizaciones pendientes
+          </SectionTitle>
+          {pendingQuotes.length ? (
+            <View style={styles.list}>
+              {pendingQuotes.map((quote) => (
+                <Pressable
+                  accessibilityLabel={`Abrir cotización ${quote.id.slice(0, 8)}`}
+                  accessibilityRole="button"
+                  key={quote.id}
+                  onPress={() => setQuoteDetail(quote)}
+                  style={({ pressed }) => [
+                    sharedStyles.card,
+                    styles.row,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <View style={styles.rowIcon}>
+                    <MaterialCommunityIcons
+                      name="file-document-edit-outline"
+                      size={20}
+                      color={BrandColors.green}
+                    />
+                  </View>
+                  <View style={styles.rowCopy}>
+                    <Text
+                      maxFontSizeMultiplier={1.3}
+                      numberOfLines={1}
+                      style={styles.title}
+                    >
+                      COT-{quote.id.slice(0, 8).toUpperCase()}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.meta}>
+                      {quote.items.length} producto
+                      {quote.items.length === 1 ? "" : "s"} por cotizar
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={18}
+                    color={BrandColors.muted}
+                  />
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <View style={[sharedStyles.card, styles.sectionEmpty]}>
+              <MaterialCommunityIcons
+                name="file-document-check-outline"
+                size={24}
+                color={BrandColors.muted}
+              />
+              <Text style={styles.muted}>
+                No hay cotizaciones esperando propuesta.
+              </Text>
+            </View>
+          )}
         </>
-      ) : null}
-      <SectionTitle
-        action={
-          <Pill
-            label={`${quotes.filter((quote) => quote.status === "requested").length}`}
-            tone="gold"
-          />
-        }
+      )}
+
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (!isSaving) setDetail(null);
+        }}
+        placement="bottom"
+        visible={detail !== null}
       >
-        Cotizaciones pendientes
-      </SectionTitle>
-      {quotes
-        .filter((quote) => quote.status === "requested")
-        .map((quote) => (
-          <View key={quote.id} style={[sharedStyles.card, styles.card]}>
-            <Text style={styles.title}>
-              COT-{quote.id.slice(0, 8).toUpperCase()}
-            </Text>
-            {quote.items.map((item) => (
-              <View key={item.id} style={styles.itemRow}>
-                <View style={styles.fill}>
-                  <Text style={styles.item}>{item.productName}</Text>
-                  <Text style={styles.meta}>
-                    {item.quantity} {item.baseUnit === "gram" ? "g" : "un."}
+        {detail ? (
+          <>
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetHeaderCopy}>
+                <Text maxFontSizeMultiplier={1.3} style={styles.sheetTitle}>
+                  {detail.tradeName ?? detail.legalName}
+                </Text>
+                <Text style={styles.sheetMeta}>
+                  RUC {detail.taxId} · {businessTypeLabels[detail.businessType]}
+                </Text>
+              </View>
+              <Pill
+                label={businessStatusLabels[detail.status]}
+                tone={
+                  detail.status === "approved"
+                    ? "green"
+                    : detail.status === "rejected" || detail.status === "suspended"
+                      ? "danger"
+                      : "gold"
+                }
+              />
+              <Pressable
+                accessibilityLabel="Cerrar cuenta comercial"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setDetail(null)}
+                style={styles.sheetClose}
+              >
+                <MaterialCommunityIcons
+                  name="close"
+                  size={22}
+                  color={BrandColors.muted}
+                />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              contentContainerStyle={styles.sheetBody}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+              style={styles.sheetScroll}
+            >
+              {canManage ? (
+                <>
+                  <Text style={styles.fieldLabel}>
+                    CONDICIONES DE CRÉDITO (OPCIONAL)
                   </Text>
-                </View>
-                <TextInput
-                  accessibilityLabel={`Precio para ${item.productName}`}
-                  keyboardType="decimal-pad"
-                  placeholder="S/ precio"
-                  placeholderTextColor={BrandColors.muted}
-                  style={styles.priceInput}
-                  value={prices[item.id] ?? ""}
-                  onChangeText={(value) =>
-                    setPrices((current) => ({ ...current, [item.id]: value }))
-                  }
+                  <View style={styles.twoColumns}>
+                    <TextInput
+                      accessibilityLabel={`Línea de crédito para ${detail.tradeName ?? detail.legalName}`}
+                      keyboardType="decimal-pad"
+                      placeholder="Línea S/"
+                      placeholderTextColor={BrandColors.muted}
+                      style={styles.input}
+                      value={credit[detail.id] ?? ""}
+                      onChangeText={(value) =>
+                        setCredit((current) => ({
+                          ...current,
+                          [detail.id]: value,
+                        }))
+                      }
+                    />
+                    <TextInput
+                      accessibilityLabel={`Plazo en días para ${detail.tradeName ?? detail.legalName}`}
+                      keyboardType="number-pad"
+                      placeholder="Plazo días"
+                      placeholderTextColor={BrandColors.muted}
+                      style={styles.input}
+                      value={terms[detail.id] ?? ""}
+                      onChangeText={(value) =>
+                        setTerms((current) => ({
+                          ...current,
+                          [detail.id]: value,
+                        }))
+                      }
+                    />
+                  </View>
+                  <Text style={styles.muted}>
+                    Aprobar o rechazar aplica la decisión a la cuenta central.
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.muted}>
+                  Solo un administrador puede revisar esta cuenta.
+                </Text>
+              )}
+            </ScrollView>
+
+            {canManage ? (
+              <View style={styles.sheetFooter}>
+                <ActionButton
+                  label="Rechazar"
+                  icon="close"
+                  disabled={isSaving}
+                  onPress={() => void review(detail, "rejected")}
+                  style={styles.footerButton}
+                  tone="danger"
+                />
+                <ActionButton
+                  label="Aprobar"
+                  icon="check"
+                  disabled={isSaving}
+                  onPress={() => void review(detail, "approved")}
+                  style={styles.saveFooterButton}
                 />
               </View>
-            ))}
-            <TextInput
-              accessibilityLabel={`Vigencia de la cotización ${quote.id.slice(0, 8)}`}
-              placeholder="Vigencia ISO"
-              placeholderTextColor={BrandColors.muted}
-              style={styles.fullInput}
-              value={validUntil[quote.id] ?? ""}
-              onChangeText={(value) =>
-                setValidUntil((current) => ({ ...current, [quote.id]: value }))
-              }
-            />
-            <TextInput
-              accessibilityLabel={`Observaciones de la cotización ${quote.id.slice(0, 8)}`}
-              placeholder="Observaciones comerciales"
-              placeholderTextColor={BrandColors.muted}
-              style={styles.fullInput}
-              value={notes[quote.id] ?? ""}
-              onChangeText={(value) =>
-                setNotes((current) => ({ ...current, [quote.id]: value }))
-              }
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !validUntil[quote.id] }}
-              disabled={!validUntil[quote.id]}
-              onPress={() => void respond(quote)}
-              style={[styles.primary, !validUntil[quote.id] && styles.disabled]}
+            ) : null}
+          </>
+        ) : null}
+      </ModalSurface>
+
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (!isSaving) setQuoteDetail(null);
+        }}
+        placement="bottom"
+        visible={quoteDetail !== null}
+      >
+        {quoteDetail ? (
+          <>
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetHeaderCopy}>
+                <Text maxFontSizeMultiplier={1.3} style={styles.sheetTitle}>
+                  COT-{quoteDetail.id.slice(0, 8).toUpperCase()}
+                </Text>
+                <Text style={styles.sheetMeta}>
+                  Propón el precio de cada producto y la vigencia.
+                </Text>
+              </View>
+              <Pressable
+                accessibilityLabel="Cerrar cotización"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setQuoteDetail(null)}
+                style={styles.sheetClose}
+              >
+                <MaterialCommunityIcons
+                  name="close"
+                  size={22}
+                  color={BrandColors.muted}
+                />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              contentContainerStyle={styles.sheetBody}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+              style={styles.sheetScroll}
             >
-              <Text style={styles.primaryText}>Enviar propuesta</Text>
-            </Pressable>
+              {quoteDetail.items.map((item) => (
+                <View key={item.id} style={styles.quoteItemRow}>
+                  <View style={styles.rowCopy}>
+                    <Text numberOfLines={2} style={styles.title}>
+                      {item.productName}
+                    </Text>
+                    <Text style={styles.meta}>
+                      {item.quantity} {item.baseUnit === "gram" ? "g" : "un."} ·
+                      catálogo {item.catalogPriceCents / 100}
+                    </Text>
+                  </View>
+                  <TextInput
+                    accessibilityLabel={`Precio para ${item.productName}`}
+                    keyboardType="decimal-pad"
+                    placeholder="S/ precio"
+                    placeholderTextColor={BrandColors.muted}
+                    style={styles.priceInput}
+                    value={prices[item.id] ?? ""}
+                    onChangeText={(value) =>
+                      setPrices((current) => ({ ...current, [item.id]: value }))
+                    }
+                  />
+                </View>
+              ))}
+              <TextInput
+                accessibilityLabel={`Vigencia de la cotización ${quoteDetail.id.slice(0, 8)}`}
+                placeholder="Vigencia ISO"
+                placeholderTextColor={BrandColors.muted}
+                style={styles.input}
+                value={validUntil[quoteDetail.id] ?? ""}
+                onChangeText={(value) =>
+                  setValidUntil((current) => ({
+                    ...current,
+                    [quoteDetail.id]: value,
+                  }))
+                }
+              />
+              <TextInput
+                accessibilityLabel={`Observaciones de la cotización ${quoteDetail.id.slice(0, 8)}`}
+                placeholder="Observaciones comerciales"
+                placeholderTextColor={BrandColors.muted}
+                style={[styles.input, styles.multilineInput]}
+                value={notes[quoteDetail.id] ?? ""}
+                onChangeText={(value) =>
+                  setNotes((current) => ({
+                    ...current,
+                    [quoteDetail.id]: value,
+                  }))
+                }
+              />
+            </ScrollView>
+
+            <ActionButton
+              label="Enviar propuesta"
+              icon="send-outline"
+              loading={isSaving}
+              disabled={isSaving || !validUntil[quoteDetail.id]}
+              onPress={() => void respond(quoteDetail)}
+            />
+          </>
+        ) : null}
+      </ModalSurface>
+
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (!isSaving) setPriceVisible(false);
+        }}
+        placement="bottom"
+        visible={priceVisible}
+      >
+        <View style={styles.sheetHeader}>
+          <View style={styles.sheetHeaderCopy}>
+            <Text maxFontSizeMultiplier={1.3} style={styles.sheetTitle}>
+              Nuevo precio acordado
+            </Text>
+            <Text style={styles.sheetMeta}>
+              Condición comercial para el negocio elegido.
+            </Text>
           </View>
-        ))}
+          <Pressable
+            accessibilityLabel="Cerrar precio acordado"
+            accessibilityRole="button"
+            hitSlop={8}
+            onPress={() => setPriceVisible(false)}
+            style={styles.sheetClose}
+          >
+            <MaterialCommunityIcons
+              name="close"
+              size={22}
+              color={BrandColors.muted}
+            />
+          </Pressable>
+        </View>
+
+        <ScrollView
+          contentContainerStyle={styles.sheetBody}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          style={styles.sheetScroll}
+        >
+          <Text style={styles.fieldLabel}>NEGOCIO APROBADO</Text>
+          <View style={styles.chips}>
+            {approvedAccounts.map((account) => (
+              <Pressable
+                accessibilityRole="radio"
+                accessibilityState={{ checked: priceAccountId === account.id }}
+                key={account.id}
+                onPress={() => setPriceAccountId(account.id)}
+                style={[
+                  styles.chip,
+                  priceAccountId === account.id && styles.chipActive,
+                ]}
+              >
+                <Text style={styles.chipText}>
+                  {account.tradeName ?? account.legalName}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          {!approvedAccounts.length ? (
+            <Text accessibilityRole="alert" style={styles.error}>
+              Primero aprueba una cuenta comercial.
+            </Text>
+          ) : null}
+          <Text style={styles.fieldLabel}>PRODUCTO</Text>
+          <ProductPicker
+            products={products.filter((product) => product.isActive)}
+            selectedId={priceProductId}
+            onSelect={setPriceProductId}
+          />
+          <View style={styles.twoColumns}>
+            <TextInput
+              keyboardType="decimal-pad"
+              placeholder="Mínimo kg/un."
+              accessibilityLabel="Cantidad mínima acordada"
+              placeholderTextColor={BrandColors.muted}
+              style={styles.input}
+              value={minimumQuantity}
+              onChangeText={setMinimumQuantity}
+            />
+            <TextInput
+              keyboardType="decimal-pad"
+              placeholder="Precio S/"
+              accessibilityLabel="Precio acordado"
+              placeholderTextColor={BrandColors.muted}
+              style={styles.input}
+              value={agreedPrice}
+              onChangeText={setAgreedPrice}
+            />
+          </View>
+          <TextInput
+            placeholder="Vigencia ISO (opcional)"
+            accessibilityLabel="Vigencia del precio acordado"
+            placeholderTextColor={BrandColors.muted}
+            style={styles.input}
+            value={priceValidUntil}
+            onChangeText={setPriceValidUntil}
+          />
+        </ScrollView>
+
+        <ActionButton
+          label="Guardar precio"
+          icon="tag-outline"
+          loading={isSaving}
+          disabled={isSaving}
+          onPress={() => void savePrice()}
+        />
+      </ModalSurface>
     </AdminScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  addHeader: {
+    width: ControlSize.default,
+    height: ControlSize.default,
+    borderRadius: Radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: BrandColors.green,
+  },
+  operatorNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  operatorNoticeCopy: { flex: 1 },
+  operatorNoticeTitle: { color: BrandColors.text, ...Typography.label },
+  operatorNoticeText: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  feedback: { gap: Spacing.sm },
   error: { color: BrandColors.danger, ...Typography.caption },
-  card: { gap: Spacing.sm },
-  top: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
-  fill: { flex: 1 },
-  title: { color: BrandColors.text, ...Typography.label },
-  item: { color: BrandColors.text, ...Typography.label },
+  muted: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+  },
+  empty: {
+    alignItems: "center",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xxl,
+  },
+  list: { gap: Spacing.sm },
+  sectionEmpty: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    minHeight: 64,
+    ...Elevation.ambientCard,
+  },
+  pressed: {
+    opacity: Interaction.pressedOpacity,
+    transform: [{ scale: Interaction.pressedScale }],
+  },
+  rowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.greenLight,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowCopy: { flex: 1 },
+  rowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.xs,
+  },
+  title: {
+    flexShrink: 1,
+    color: BrandColors.text,
+    ...Typography.label,
+  },
   meta: {
     color: BrandColors.muted,
     ...Typography.caption,
     marginTop: Spacing.xxs,
   },
-  row: { flexDirection: "row", gap: Spacing.xs },
+  sheet: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  sheetScroll: { flexShrink: 1 },
+  sheetBody: { gap: Spacing.sm, paddingBottom: Spacing.xs },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  sheetHeaderCopy: { flex: 1 },
+  sheetTitle: { color: BrandColors.text, ...Typography.h3 },
+  sheetMeta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  sheetClose: {
+    width: ControlSize.compact,
+    height: ControlSize.compact,
+    borderRadius: Radius.sm,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetFooter: {
+    flexDirection: "row",
+    gap: Spacing.xs,
+  },
+  footerButton: { flex: 1 },
+  saveFooterButton: { flex: 1.6 },
+  fieldLabel: {
+    color: BrandColors.muted,
+    ...Typography.overline,
+  },
+  twoColumns: { flexDirection: "row", gap: Spacing.sm },
   input: {
     flex: 1,
+    minWidth: 0,
     minHeight: ControlSize.default,
-    borderRadius: ComponentMetrics.inputRadius,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: BrandColors.line,
     backgroundColor: BrandColors.white,
@@ -454,20 +982,15 @@ const styles = StyleSheet.create({
     color: BrandColors.text,
     ...Typography.body,
   },
-  fullInput: {
-    minHeight: ControlSize.default,
-    borderRadius: ComponentMetrics.inputRadius,
-    borderWidth: 1,
-    borderColor: BrandColors.line,
-    backgroundColor: BrandColors.white,
-    paddingHorizontal: Spacing.sm,
-    color: BrandColors.text,
-    ...Typography.body,
+  multilineInput: {
+    minHeight: ControlSize.default + Spacing.xl,
+    paddingTop: Spacing.sm,
+    textAlignVertical: "top",
   },
   priceInput: {
     width: ControlSize.default * 2 + Spacing.xxs,
     minHeight: ControlSize.default,
-    borderRadius: ComponentMetrics.inputRadius,
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: BrandColors.line,
     backgroundColor: BrandColors.white,
@@ -475,7 +998,11 @@ const styles = StyleSheet.create({
     color: BrandColors.text,
     ...Typography.body,
   },
-  itemRow: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
+  quoteItemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs },
   chip: {
     minHeight: ControlSize.default,
@@ -495,25 +1022,51 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontWeight: "700",
   },
-  secondary: {
-    flex: 1,
+  picker: { gap: Spacing.xs },
+  searchWrap: {
     minHeight: ControlSize.default,
     borderRadius: Radius.md,
-    backgroundColor: BrandColors.dangerLight,
+    borderWidth: 1,
+    borderColor: BrandColors.line,
+    backgroundColor: BrandColors.white,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.md,
+    paddingLeft: Spacing.md,
+    gap: Spacing.xs,
   },
-  dangerText: { color: BrandColors.danger, ...Typography.label },
-  primary: {
+  searchInput: {
     flex: 1,
-    minHeight: ControlSize.default,
-    borderRadius: Radius.md,
-    backgroundColor: BrandColors.green,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: Spacing.md,
+    minWidth: 0,
+    color: BrandColors.text,
+    ...Typography.body,
+    paddingVertical: 13,
+    includeFontPadding: false,
+    textAlignVertical: "center",
   },
-  primaryText: { color: BrandColors.white, ...Typography.label },
-  disabled: { opacity: Interaction.disabledOpacity },
+  pickerList: {
+    maxHeight: 240,
+    borderRadius: Radius.md,
+    borderWidth: 1,
+    borderColor: BrandColors.line,
+    backgroundColor: BrandColors.white,
+  },
+  pickerRow: {
+    minHeight: ControlSize.compact,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
+    paddingHorizontal: Spacing.sm,
+  },
+  pickerRowSelected: { backgroundColor: BrandColors.greenLight },
+  pickerName: { flex: 1, color: BrandColors.text, ...Typography.label },
+  pickerNameSelected: { color: BrandColors.greenDark },
+  pickerMeta: { color: BrandColors.muted, ...Typography.caption },
+  pickerEmpty: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    padding: Spacing.sm,
+    textAlign: "center",
+  },
+  borderTop: { borderTopWidth: 1, borderTopColor: BrandColors.line },
 });

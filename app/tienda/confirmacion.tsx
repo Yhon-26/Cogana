@@ -64,14 +64,19 @@ export default function OrderConfirmationScreen() {
           el total final antes de completar la entrega.
         </Text>
         <View style={styles.receipt}>
-          <View>
+          <View style={styles.receiptNumber}>
             <Text style={styles.receiptLabel}>NÚMERO DE PEDIDO</Text>
-            <Text maxFontSizeMultiplier={1.4} style={styles.number}>
+            <Text
+              adjustsFontSizeToFit
+              maxFontSizeMultiplier={1.4}
+              numberOfLines={1}
+              style={styles.number}
+            >
               {numero}
             </Text>
           </View>
           <View style={styles.receiptAmount}>
-            <Text style={styles.receiptLabel}>ESTIMADO</Text>
+            <Text style={styles.receiptLabel}>IMPORTE</Text>
             <Text maxFontSizeMultiplier={1.4} style={styles.total}>
               S/ {(Number(total || 0) / 100).toFixed(2)}
             </Text>
@@ -161,12 +166,17 @@ const styles = StyleSheet.create({
     marginVertical: Spacing.xs,
   },
   receiptLabel: { color: BrandColors.muted, ...Typography.overline },
+  receiptNumber: {
+    flex: 1,
+    flexShrink: 1,
+    marginRight: Spacing.sm,
+  },
   number: {
     color: BrandColors.greenDark,
     ...Typography.h2,
     marginTop: Spacing.xxs,
   },
-  receiptAmount: { alignItems: "flex-end" },
+  receiptAmount: { alignItems: "flex-end", flexShrink: 0 },
   total: { color: BrandColors.text, ...Typography.h3, marginTop: Spacing.xxs },
   button: { alignSelf: "stretch" },
   trust: {

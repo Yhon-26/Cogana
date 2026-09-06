@@ -4,20 +4,31 @@ import * as ImagePicker from "expo-image-picker";
 import * as Linking from "expo-linking";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from "react-native";
 
 import {
+  ActionButton,
   AdminScreen,
   Pill,
+  PrimaryButton,
   SectionTitle,
   sharedStyles,
 } from "@/components/admin-ui";
-import { OperatorSelector } from "@/components/operator-selector";
+import { ModalSurface } from "@/components/modal-surface";
 import { ThemedTextInput as TextInput } from "@/components/themed-text-input";
 import {
   BrandColors,
   ComponentMetrics,
   ControlSize,
+  Elevation,
   Interaction,
   Radius,
   Spacing,
@@ -53,6 +64,8 @@ const deliveryStatusLabels: Record<DeliveryAssignmentRecord["status"], string> =
 export default function DeliveriesScreen() {
   const { users, selectedUser, deviceId } = useLocalOperator();
   const { database, orders, refresh: refreshOrders } = useOrders();
+  const { height } = useWindowDimensions();
+  const sheetMaxHeight = Math.round(height * 0.88);
   const [assignments, setAssignments] = useState<DeliveryAssignmentRecord[]>(
     [],
   );
@@ -61,11 +74,16 @@ export default function DeliveriesScreen() {
   const [confirming, setConfirming] = useState<DeliveryAssignmentRecord | null>(
     null,
   );
+  const [detail, setDetail] = useState<DeliveryAssignmentRecord | null>(null);
+  const [incidentTarget, setIncidentTarget] =
+    useState<DeliveryAssignmentRecord | null>(null);
+  const [incident, setIncident] = useState("");
   const [recipientName, setRecipientName] = useState("");
   const [confirmationCode, setConfirmationCode] = useState("");
   const [evidenceUri, setEvidenceUri] = useState("");
-  const [incident, setIncident] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
   const [operators, setOperators] = useState<DeliveryOperator[]>([]);
+  const [operatorSheetVisible, setOperatorSheetVisible] = useState(false);
   const [operatorName, setOperatorName] = useState("");
   const [trackingBaseUrl, setTrackingBaseUrl] = useState("");
   const [supportPhone, setSupportPhone] = useState("");
@@ -97,9 +115,11 @@ export default function DeliveriesScreen() {
           !["failed", "cancelled"].includes(assignment.status),
       ),
   );
+  const canManage = selectedUser?.role === "administrator";
 
   const assign = async (orderId: string) => {
-    if (!selectedUser || !selectedDriver) return;
+    if (!selectedUser || !selectedDriver || isSaving) return;
+    setIsSaving(true);
     try {
       await assignDelivery(database, {
         storeId: DEFAULT_STORE_ID,
@@ -116,11 +136,14 @@ export default function DeliveriesScreen() {
         "No se pudo asignar",
         getOperatorErrorMessage(caughtError, "Intenta nuevamente."),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const start = async (assignmentId: string) => {
-    if (!selectedUser) return;
+    if (!selectedUser || isSaving) return;
+    setIsSaving(true);
     try {
       await startDelivery(database, {
         storeId: DEFAULT_STORE_ID,
@@ -128,17 +151,21 @@ export default function DeliveriesScreen() {
         actorUserId: selectedUser.id,
         deviceId,
       });
+      setDetail(null);
       await load();
     } catch (caughtError) {
       Alert.alert(
         "No se pudo iniciar",
         getOperatorErrorMessage(caughtError, "Intenta nuevamente."),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const confirm = async () => {
-    if (!selectedUser || !confirming) return;
+    if (!selectedUser || !confirming || isSaving) return;
+    setIsSaving(true);
     try {
       await confirmDelivery(database, {
         storeId: DEFAULT_STORE_ID,
@@ -155,6 +182,7 @@ export default function DeliveriesScreen() {
       setConfirmationCode("");
       setEvidenceUri("");
       setNotes("");
+      setDetail(null);
       await load();
     } catch (caughtError) {
       Alert.alert(
@@ -164,6 +192,8 @@ export default function DeliveriesScreen() {
           "Revisa los datos e intenta nuevamente.",
         ),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -205,18 +235,20 @@ export default function DeliveriesScreen() {
     }
   };
 
-  const report = async (assignment: DeliveryAssignmentRecord) => {
-    if (!selectedUser || !incident.trim()) return;
+  const report = async () => {
+    if (!selectedUser || !incidentTarget || !incident.trim() || isSaving) return;
+    setIsSaving(true);
     try {
       await createOrderIncident(database, {
         storeId: DEFAULT_STORE_ID,
-        orderId: assignment.orderId,
+        orderId: incidentTarget.orderId,
         type: "delivery",
         description: incident,
         actorUserId: selectedUser.id,
         deviceId,
       });
       setIncident("");
+      setIncidentTarget(null);
       Alert.alert(
         "Incidencia registrada",
         "Quedó pendiente de sincronización.",
@@ -226,10 +258,14 @@ export default function DeliveriesScreen() {
         "No se pudo registrar",
         getOperatorErrorMessage(caughtError, "Intenta nuevamente."),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const saveOperator = async () => {
+    if (!operatorName.trim() || isSaving) return;
+    setIsSaving(true);
     try {
       await saveDeliveryOperator({
         name: operatorName,
@@ -251,25 +287,47 @@ export default function DeliveriesScreen() {
           "Revisa los datos e intenta nuevamente.",
         ),
       );
+    } finally {
+      setIsSaving(false);
     }
   };
+
+  const statusTone = (status: DeliveryAssignmentRecord["status"]) =>
+    status === "delivered" ? "green" : status === "failed" ? "danger" : "gold";
 
   return (
     <AdminScreen
       title="Repartos"
       subtitle="Despacho, ruta y confirmación de entrega"
     >
-      <OperatorSelector />
-      {selectedUser?.role === "administrator" ? (
+      {!selectedUser ? (
+        <View style={[sharedStyles.card, styles.operatorNotice]}>
+          <MaterialCommunityIcons
+            name="account-key-outline"
+            size={22}
+            color={BrandColors.warning}
+          />
+          <View style={styles.operatorNoticeCopy}>
+            <Text style={styles.operatorNoticeTitle}>Falta tu operador</Text>
+            <Text style={styles.operatorNoticeText}>
+              Activa tu perfil con PIN en la pestaña Más para despachar
+              entregas.
+            </Text>
+          </View>
+        </View>
+      ) : null}
+
+      {canManage ? (
         <>
           <SectionTitle
             action={<Pill label={`${availableOrders.length}`} tone="gold" />}
           >
-            Pedidos listos para despacho
+            Listos para despacho
           </SectionTitle>
           <View style={styles.chips}>
             {users.map((user) => (
               <Pressable
+                accessibilityLabel={`Repartidor ${user.displayName}`}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: selectedDriver === user.id }}
                 key={user.id}
@@ -283,263 +341,576 @@ export default function DeliveriesScreen() {
               </Pressable>
             ))}
           </View>
-          <TextInput
-            accessibilityLabel="Nota de ruta"
-            placeholder="Nota de ruta (opcional)"
-            placeholderTextColor={BrandColors.muted}
-            style={styles.input}
-            value={notes}
-            onChangeText={setNotes}
-          />
-          {availableOrders.map((order) => (
-            <View key={order.id} style={[sharedStyles.card, styles.card]}>
-              <View style={styles.fill}>
-                <Text style={styles.title}>{order.orderNumber}</Text>
-                <Text style={styles.meta}>
-                  {order.customerName} · {order.deliveryZoneName}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityLabel={`Asignar pedido ${order.orderNumber}`}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !selectedDriver }}
-                disabled={!selectedDriver}
-                onPress={() => void assign(order.id)}
-                style={[styles.primary, !selectedDriver && styles.disabled]}
-              >
-                <Text style={styles.primaryText}>Asignar</Text>
-              </Pressable>
-            </View>
-          ))}
-          <SectionTitle>Operadores externos</SectionTitle>
-          <View style={[sharedStyles.card, styles.confirm]}>
-            {operators.map((operator) => (
-              <View key={operator.id} style={styles.top}>
-                <View style={styles.fill}>
-                  <Text style={styles.title}>{operator.name}</Text>
-                  <Text style={styles.meta}>
-                    {operator.integrationMode === "manual"
-                      ? "Asignación manual"
-                      : "API configurada en backend"}
-                  </Text>
+          {!selectedDriver ? (
+            <Text style={styles.muted}>
+              Elige el repartidor antes de asignar pedidos.
+            </Text>
+          ) : null}
+          {availableOrders.length ? (
+            <View style={styles.list}>
+              {availableOrders.map((order) => (
+                <View
+                  key={order.id}
+                  style={[sharedStyles.card, styles.orderRow, styles.rowShadow]}
+                >
+                  <View style={styles.orderCopy}>
+                    <Text
+                      maxFontSizeMultiplier={1.3}
+                      numberOfLines={1}
+                      style={styles.orderNumber}
+                    >
+                      {order.orderNumber}
+                    </Text>
+                    <Text numberOfLines={1} style={styles.meta}>
+                      {order.customerName} · {order.deliveryZoneName ?? "Delivery"}
+                    </Text>
+                  </View>
+                  <PrimaryButton
+                    compact
+                    label="Asignar"
+                    disabled={!selectedDriver || isSaving}
+                    onPress={() => void assign(order.id)}
+                    style={styles.assignButton}
+                  />
                 </View>
-                <Pill
-                  label={operator.isActive ? "Activo" : "Inactivo"}
-                  tone="neutral"
-                />
-              </View>
-            ))}
-            <TextInput
-              accessibilityLabel="Nombre del operador"
-              placeholder="Nombre del operador"
-              placeholderTextColor={BrandColors.muted}
-              style={styles.input}
-              value={operatorName}
-              onChangeText={setOperatorName}
+              ))}
+            </View>
+          ) : (
+            <View style={[sharedStyles.card, styles.sectionEmpty]}>
+              <MaterialCommunityIcons
+                name="moped-outline"
+                size={24}
+                color={BrandColors.muted}
+              />
+              <Text style={styles.muted}>
+                No hay pedidos listos para despacho.
+              </Text>
+            </View>
+          )}
+
+          <SectionTitle
+            action={<Pill label={`${operators.length}`} tone="neutral" />}
+          >
+            Operadores externos
+          </SectionTitle>
+          <Pressable
+            accessibilityLabel="Gestionar operadores externos"
+            accessibilityRole="button"
+            onPress={() => setOperatorSheetVisible(true)}
+            style={({ pressed }) => [
+              sharedStyles.card,
+              styles.operatorLink,
+              pressed && styles.pressed,
+            ]}
+          >
+            <MaterialCommunityIcons
+              name="truck-fast-outline"
+              size={20}
+              color={BrandColors.green}
             />
-            <TextInput
-              accessibilityLabel="URL base de tracking"
-              autoCapitalize="none"
-              placeholder="URL base de tracking (sin secretos)"
-              placeholderTextColor={BrandColors.muted}
-              style={styles.input}
-              value={trackingBaseUrl}
-              onChangeText={setTrackingBaseUrl}
+            <View style={styles.operatorNoticeCopy}>
+              <Text style={styles.operatorNoticeTitle}>
+                {operators.length
+                  ? `${operators.length} operador${operators.length === 1 ? "" : "es"} registrado${operators.length === 1 ? "" : "s"}`
+                  : "Registrar operador externo"}
+              </Text>
+              <Text style={styles.operatorNoticeText}>
+                Empresas de delivery con tracking manual o API.
+              </Text>
+            </View>
+            <MaterialCommunityIcons
+              name="chevron-right"
+              size={18}
+              color={BrandColors.muted}
             />
-            <TextInput
-              accessibilityLabel="Teléfono de soporte"
-              keyboardType="phone-pad"
-              placeholder="Teléfono de soporte"
-              placeholderTextColor={BrandColors.muted}
-              style={styles.input}
-              value={supportPhone}
-              onChangeText={setSupportPhone}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ disabled: !operatorName.trim() }}
-              disabled={!operatorName.trim()}
-              onPress={() => void saveOperator()}
-              style={[styles.primary, !operatorName.trim() && styles.disabled]}
-            >
-              <Text style={styles.primaryText}>Guardar operador manual</Text>
-            </Pressable>
-          </View>
+          </Pressable>
         </>
       ) : null}
+
       <SectionTitle
         action={<Pill label={`${assignments.length}`} tone="neutral" />}
       >
         Entregas asignadas
       </SectionTitle>
-      {assignments.map((assignment) => (
-        <View
-          key={assignment.id}
-          style={[sharedStyles.card, styles.deliveryCard]}
-        >
-          <View style={styles.top}>
-            <View style={styles.fill}>
-              <Text style={styles.title}>{assignment.orderNumber}</Text>
-              <Text style={styles.meta}>
-                {assignment.customerName} · {assignment.customerPhone}
+      {assignments.length ? (
+        <View style={styles.list}>
+          {assignments.map((assignment) => (
+            <Pressable
+              accessibilityLabel={`Abrir entrega ${assignment.orderNumber}`}
+              accessibilityRole="button"
+              key={assignment.id}
+              onPress={() => setDetail(assignment)}
+              style={({ pressed }) => [
+                sharedStyles.card,
+                styles.deliveryRow,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View
+                style={[
+                  styles.rowIcon,
+                  assignment.status !== "delivered" &&
+                    styles.rowIconActive,
+                ]}
+              >
+                <MaterialCommunityIcons
+                  name={
+                    assignment.status === "delivered"
+                      ? "check-all"
+                      : assignment.status === "en_route"
+                        ? "moped"
+                        : "package-variant-closed"
+                  }
+                  size={20}
+                  color={
+                    assignment.status === "delivered"
+                      ? BrandColors.muted
+                      : BrandColors.green
+                  }
+                />
+              </View>
+              <View style={styles.orderCopy}>
+                <View style={styles.rowTop}>
+                  <Text
+                    maxFontSizeMultiplier={1.3}
+                    numberOfLines={1}
+                    style={styles.orderNumber}
+                  >
+                    {assignment.orderNumber}
+                  </Text>
+                  <Pill
+                    label={deliveryStatusLabels[assignment.status]}
+                    tone={statusTone(assignment.status)}
+                  />
+                </View>
+                <Text numberOfLines={1} style={styles.meta}>
+                  {assignment.customerName} · {assignment.address},{" "}
+                  {assignment.district}
+                </Text>
+                <Text numberOfLines={1} style={styles.meta}>
+                  Repartidor: {assignment.driverName}
+                </Text>
+              </View>
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={18}
+                color={BrandColors.muted}
+              />
+            </Pressable>
+          ))}
+        </View>
+      ) : (
+        <View style={[sharedStyles.card, styles.sectionEmpty]}>
+          <MaterialCommunityIcons
+            name="map-marker-path"
+            size={24}
+            color={BrandColors.muted}
+          />
+          <Text style={styles.muted}>
+            {canManage
+              ? "Asigna pedidos para ver las entregas en ruta."
+              : "Aún no tienes entregas asignadas."}
+          </Text>
+        </View>
+      )}
+
+      <ModalSurface
+        dialogStyle={styles.dialog}
+        onClose={() => setOperatorSheetVisible(false)}
+        visible={operatorSheetVisible}
+      >
+        <View style={styles.dialogHeader}>
+          <MaterialCommunityIcons
+            name="truck-fast-outline"
+            size={24}
+            color={BrandColors.greenDark}
+          />
+          <Text maxFontSizeMultiplier={1.3} style={styles.dialogTitle}>
+            Operadores externos
+          </Text>
+        </View>
+        {operators.map((operator) => (
+          <View key={operator.id} style={styles.operatorRow}>
+            <View style={styles.operatorCopy}>
+              <Text style={styles.operatorName}>{operator.name}</Text>
+              <Text style={styles.operatorMeta}>
+                {operator.integrationMode === "manual"
+                  ? "Asignación manual"
+                  : "API configurada en backend"}
               </Text>
             </View>
             <Pill
-              label={deliveryStatusLabels[assignment.status]}
-              tone={assignment.status === "delivered" ? "green" : "gold"}
+              label={operator.isActive ? "Activo" : "Inactivo"}
+              tone="neutral"
             />
           </View>
-          <Text style={styles.address}>
-            {assignment.address}, {assignment.district}
+        ))}
+        {!operators.length ? (
+          <Text style={styles.operatorMeta}>
+            Aún no hay operadores externos registrados.
           </Text>
-          {assignment.instructions ? (
-            <Text style={styles.meta}>{assignment.instructions}</Text>
-          ) : null}
-          <Text style={styles.meta}>Repartidor: {assignment.driverName}</Text>
-          <View style={styles.actions}>
-            <Pressable
-              accessibilityLabel={`Abrir mapa para ${assignment.orderNumber}`}
-              accessibilityRole="link"
-              onPress={() =>
-                void Linking.openURL(
-                  `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${assignment.address}, ${assignment.district}, Lima`)}`,
-                )
-              }
-              style={styles.secondary}
-            >
-              <MaterialCommunityIcons
-                name="map-marker-path"
-                size={Typography.h3.fontSize}
-                color={BrandColors.greenDark}
+        ) : null}
+        <View style={styles.operatorFormDivider} />
+        <TextInput
+          accessibilityLabel="Nombre del operador"
+          placeholder="Nombre del operador"
+          placeholderTextColor={BrandColors.muted}
+          style={styles.input}
+          value={operatorName}
+          onChangeText={setOperatorName}
+        />
+        <TextInput
+          accessibilityLabel="URL base de tracking"
+          autoCapitalize="none"
+          placeholder="URL base de tracking (sin secretos)"
+          placeholderTextColor={BrandColors.muted}
+          style={styles.input}
+          value={trackingBaseUrl}
+          onChangeText={setTrackingBaseUrl}
+        />
+        <TextInput
+          accessibilityLabel="Teléfono de soporte"
+          keyboardType="phone-pad"
+          placeholder="Teléfono de soporte"
+          placeholderTextColor={BrandColors.muted}
+          style={styles.input}
+          value={supportPhone}
+          onChangeText={setSupportPhone}
+        />
+        <View style={styles.dialogActions}>
+          <ActionButton
+            compact
+            label="Cerrar"
+            onPress={() => setOperatorSheetVisible(false)}
+            style={styles.dialogButton}
+            tone="ghost"
+          />
+          <ActionButton
+            compact
+            disabled={!operatorName.trim() || isSaving}
+            label="Guardar operador"
+            loading={isSaving}
+            onPress={() => void saveOperator()}
+            style={styles.dialogButton}
+          />
+        </View>
+      </ModalSurface>
+
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        onClose={() => setDetail(null)}
+        placement="bottom"
+        visible={detail !== null}
+      >
+        {detail ? (
+          <>
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetHeaderCopy}>
+                <Text maxFontSizeMultiplier={1.3} style={styles.sheetTitle}>
+                  {detail.orderNumber}
+                </Text>
+                <Text style={styles.sheetMeta}>
+                  {detail.customerName} · {detail.customerPhone}
+                </Text>
+              </View>
+              <Pill
+                label={deliveryStatusLabels[detail.status]}
+                tone={statusTone(detail.status)}
               />
-              <Text style={styles.secondaryText}>Mapa</Text>
-            </Pressable>
-            {assignment.status === "assigned" ? (
               <Pressable
-                accessibilityLabel={`Iniciar ruta de ${assignment.orderNumber}`}
+                accessibilityLabel="Cerrar detalle de la entrega"
                 accessibilityRole="button"
-                onPress={() => void start(assignment.id)}
-                style={styles.primary}
-              >
-                <Text style={styles.primaryText}>Iniciar ruta</Text>
-              </Pressable>
-            ) : null}
-            {assignment.status === "en_route" ? (
-              <Pressable
-                accessibilityLabel={`Confirmar entrega de ${assignment.orderNumber}`}
-                accessibilityRole="button"
-                onPress={() => setConfirming(assignment)}
-                style={styles.primary}
-              >
-                <Text style={styles.primaryText}>Entregar</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          {assignment.status === "en_route" ? (
-            <View style={styles.incidentRow}>
-              <TextInput
-                accessibilityLabel={`Incidencia para ${assignment.orderNumber}`}
-                placeholder="Incidencia: ausencia, dirección…"
-                placeholderTextColor={BrandColors.muted}
-                style={[styles.input, styles.fill]}
-                value={incident}
-                onChangeText={setIncident}
-              />
-              <Pressable
-                accessibilityLabel={`Registrar incidencia de ${assignment.orderNumber}`}
-                accessibilityRole="button"
-                accessibilityState={{ disabled: !incident.trim() }}
-                disabled={!incident.trim()}
-                onPress={() => void report(assignment)}
-                style={[styles.iconButton, !incident.trim() && styles.disabled]}
+                hitSlop={8}
+                onPress={() => setDetail(null)}
+                style={styles.sheetClose}
               >
                 <MaterialCommunityIcons
-                  name="alert-circle-outline"
-                  size={Spacing.xl}
-                  color={BrandColors.danger}
+                  name="close"
+                  size={22}
+                  color={BrandColors.muted}
                 />
               </Pressable>
             </View>
-          ) : null}
-        </View>
-      ))}
-      {confirming ? (
-        <View style={[sharedStyles.card, styles.confirm]}>
-          <Text style={styles.title}>Confirmar {confirming.orderNumber}</Text>
-          <TextInput
-            accessibilityLabel="Nombre de quien recibe"
-            placeholder="Nombre de quien recibe"
-            placeholderTextColor={BrandColors.muted}
-            style={styles.input}
-            value={recipientName}
-            onChangeText={setRecipientName}
-          />
-          <TextInput
-            accessibilityLabel="Código de recepción"
-            placeholder="Código de recepción (opcional)"
-            placeholderTextColor={BrandColors.muted}
-            style={styles.input}
-            value={confirmationCode}
-            onChangeText={setConfirmationCode}
-          />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => void captureEvidence()}
-            style={styles.secondary}
-          >
-            <MaterialCommunityIcons
-              name="camera-outline"
-              size={Typography.h3.fontSize}
-              color={BrandColors.greenDark}
-            />
-            <Text style={styles.secondaryText}>
-              {evidenceUri
-                ? "Foto adjuntada · reemplazar"
-                : "Tomar foto de evidencia"}
-            </Text>
-          </Pressable>
-          {!confirmationCode.trim() && !evidenceUri ? (
-            <Text style={styles.meta}>
-              Registra un código o toma una foto para acreditar la entrega.
-            </Text>
-          ) : null}
-          <View style={styles.actions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => setConfirming(null)}
-              style={styles.secondary}
+
+            <ScrollView
+              contentContainerStyle={styles.sheetBody}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+              style={styles.sheetScroll}
             >
-              <Text style={styles.secondaryText}>Cancelar</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{
-                disabled:
+              <View style={[sharedStyles.card, styles.summaryCard]}>
+                <View style={styles.summaryRow}>
+                  <MaterialCommunityIcons
+                    name="map-marker-outline"
+                    size={16}
+                    color={BrandColors.muted}
+                  />
+                  <Text style={styles.summaryText}>
+                    {detail.address}, {detail.district}
+                  </Text>
+                </View>
+                {detail.instructions ? (
+                  <View style={styles.summaryRow}>
+                    <MaterialCommunityIcons
+                      name="text-box-outline"
+                      size={16}
+                      color={BrandColors.muted}
+                    />
+                    <Text style={styles.summaryText}>
+                      {detail.instructions}
+                    </Text>
+                  </View>
+                ) : null}
+                <View style={styles.summaryRow}>
+                  <MaterialCommunityIcons
+                    name="account-outline"
+                    size={16}
+                    color={BrandColors.muted}
+                  />
+                  <Text style={styles.summaryText}>
+                    Repartidor: {detail.driverName}
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+
+            {["assigned", "en_route"].includes(detail.status) ? (
+              <View style={styles.sheetFooter}>
+                <ActionButton
+                  label="Mapa"
+                  icon="map-marker-path"
+                  onPress={() =>
+                    void Linking.openURL(
+                      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${detail.address}, ${detail.district}, Lima`)}`,
+                    )
+                  }
+                  style={styles.footerButton}
+                  tone="secondary"
+                />
+                {detail.status === "assigned" ? (
+                  <ActionButton
+                    label="Iniciar ruta"
+                    icon="play"
+                    loading={isSaving}
+                    disabled={isSaving}
+                    onPress={() => void start(detail.id)}
+                    style={styles.footerButton}
+                  />
+                ) : (
+                  <ActionButton
+                    label="Entregar"
+                    icon="package-variant-closed-check"
+                    disabled={isSaving}
+                    onPress={() => {
+                      setRecipientName("");
+                      setConfirmationCode("");
+                      setEvidenceUri("");
+                      setConfirming(detail);
+                    }}
+                    style={styles.footerButton}
+                  />
+                )}
+              </View>
+            ) : null}
+            {detail.status === "en_route" ? (
+              <Pressable
+                accessibilityLabel={`Registrar incidencia de ${detail.orderNumber}`}
+                accessibilityRole="button"
+                onPress={() => {
+                  setIncident("");
+                  setIncidentTarget(detail);
+                }}
+                style={styles.cancelLink}
+              >
+                <MaterialCommunityIcons
+                  name="alert-circle-outline"
+                  size={18}
+                  color={BrandColors.danger}
+                />
+                <Text style={styles.cancelLinkText}>Reportar incidencia</Text>
+              </Pressable>
+            ) : null}
+          </>
+        ) : null}
+      </ModalSurface>
+
+      <ModalSurface
+        dialogStyle={styles.dialog}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (!isSaving) setIncidentTarget(null);
+        }}
+        visible={incidentTarget !== null}
+      >
+        <View style={styles.dialogHeader}>
+          <MaterialCommunityIcons
+            name="alert-circle-outline"
+            size={24}
+            color={BrandColors.danger}
+          />
+          <Text maxFontSizeMultiplier={1.3} style={styles.dialogTitle}>
+            Incidencia de {incidentTarget?.orderNumber ?? ""}
+          </Text>
+        </View>
+        <Text style={styles.dialogHint}>
+          Describe qué ocurrió: cliente ausente, dirección errada, paquete
+          dañado.
+        </Text>
+        <TextInput
+          accessibilityLabel="Descripción de la incidencia"
+          autoFocus
+          multiline
+          placeholder="Ej. cliente ausente en el domicilio"
+          placeholderTextColor={BrandColors.muted}
+          style={[styles.input, styles.multilineInput]}
+          value={incident}
+          onChangeText={setIncident}
+        />
+        <View style={styles.dialogActions}>
+          <ActionButton
+            compact
+            disabled={isSaving}
+            label="Cancelar"
+            onPress={() => setIncidentTarget(null)}
+            style={styles.dialogButton}
+            tone="ghost"
+          />
+          <ActionButton
+            compact
+            disabled={!incident.trim() || isSaving}
+            label="Registrar"
+            loading={isSaving}
+            onPress={() => void report()}
+            style={styles.dialogButton}
+          />
+        </View>
+      </ModalSurface>
+
+      <ModalSurface
+        animationType="slide"
+        dialogStyle={[styles.sheet, { maxHeight: sheetMaxHeight }]}
+        dismissOnBackdrop={!isSaving}
+        onClose={() => {
+          if (!isSaving) setConfirming(null);
+        }}
+        placement="bottom"
+        visible={confirming !== null}
+      >
+        {confirming ? (
+          <>
+            <View style={styles.sheetHeader}>
+              <View style={styles.sheetHeaderCopy}>
+                <Text maxFontSizeMultiplier={1.3} style={styles.sheetTitle}>
+                  Confirmar entrega {confirming.orderNumber}
+                </Text>
+                <Text style={styles.sheetMeta}>
+                  Acredita la entrega con código o foto.
+                </Text>
+              </View>
+              <Pressable
+                accessibilityLabel="Cerrar confirmación de entrega"
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => setConfirming(null)}
+                style={styles.sheetClose}
+              >
+                <MaterialCommunityIcons
+                  name="close"
+                  size={22}
+                  color={BrandColors.muted}
+                />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              contentContainerStyle={styles.sheetBody}
+              keyboardShouldPersistTaps="handled"
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+              style={styles.sheetScroll}
+            >
+              <TextInput
+                accessibilityLabel="Nombre de quien recibe"
+                placeholder="Nombre de quien recibe"
+                placeholderTextColor={BrandColors.muted}
+                style={styles.input}
+                value={recipientName}
+                onChangeText={setRecipientName}
+              />
+              <TextInput
+                accessibilityLabel="Código de recepción"
+                placeholder="Código de recepción (opcional)"
+                placeholderTextColor={BrandColors.muted}
+                style={styles.input}
+                value={confirmationCode}
+                onChangeText={setConfirmationCode}
+              />
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void captureEvidence()}
+                style={styles.cameraButton}
+              >
+                <MaterialCommunityIcons
+                  name="camera-outline"
+                  size={19}
+                  color={BrandColors.greenDark}
+                />
+                <Text style={styles.cameraText}>
+                  {evidenceUri
+                    ? "Foto adjuntada · reemplazar"
+                    : "Tomar foto de evidencia"}
+                </Text>
+              </Pressable>
+              {!confirmationCode.trim() && !evidenceUri ? (
+                <Text style={styles.muted}>
+                  Registra un código o toma una foto para acreditar la entrega.
+                </Text>
+              ) : null}
+            </ScrollView>
+
+            <View style={styles.sheetFooter}>
+              <ActionButton
+                compact
+                disabled={isSaving}
+                label="Cancelar"
+                onPress={() => setConfirming(null)}
+                style={styles.footerButton}
+                tone="ghost"
+              />
+              <ActionButton
+                compact
+                disabled={
                   !recipientName.trim() ||
-                  (!confirmationCode.trim() && !evidenceUri),
-              }}
-              disabled={
-                !recipientName.trim() ||
-                (!confirmationCode.trim() && !evidenceUri)
-              }
-              onPress={() => void confirm()}
-              style={[
-                styles.primary,
-                (!recipientName.trim() ||
-                  (!confirmationCode.trim() && !evidenceUri)) &&
-                  styles.disabled,
-              ]}
-            >
-              <Text style={styles.primaryText}>Confirmar entrega</Text>
-            </Pressable>
-          </View>
-        </View>
-      ) : null}
+                  (!confirmationCode.trim() && !evidenceUri) ||
+                  isSaving
+                }
+                label="Confirmar entrega"
+                loading={isSaving}
+                onPress={() => void confirm()}
+                style={styles.saveFooterButton}
+              />
+            </View>
+          </>
+        ) : null}
+      </ModalSurface>
     </AdminScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  operatorNotice: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  operatorNoticeCopy: { flex: 1 },
+  operatorNoticeTitle: { color: BrandColors.text, ...Typography.label },
+  operatorNoticeText: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: Spacing.xs },
   chip: {
     minHeight: ControlSize.default,
@@ -559,6 +930,81 @@ const styles = StyleSheet.create({
     ...Typography.caption,
     fontWeight: "700",
   },
+  muted: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+  },
+  list: { gap: Spacing.sm },
+  sectionEmpty: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+  },
+  rowShadow: { ...Elevation.ambientCard },
+  orderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    minHeight: 64,
+  },
+  orderCopy: { flex: 1 },
+  orderNumber: {
+    flexShrink: 1,
+    color: BrandColors.greenDark,
+    ...Typography.label,
+  },
+  rowTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.xs,
+  },
+  meta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  assignButton: { minWidth: 108 },
+  deliveryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    minHeight: 72,
+    ...Elevation.ambientCard,
+  },
+  rowIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.round,
+    backgroundColor: BrandColors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rowIconActive: { backgroundColor: BrandColors.greenLight },
+  operatorLink: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.sm,
+    minHeight: 64,
+    ...Elevation.ambientCard,
+  },
+  operatorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  operatorCopy: { flex: 1 },
+  operatorName: { color: BrandColors.text, ...Typography.label },
+  operatorMeta: {
+    color: BrandColors.muted,
+    ...Typography.caption,
+    marginTop: Spacing.xxs,
+  },
+  operatorFormDivider: {
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.line,
+    paddingTop: Spacing.xs,
+  },
   input: {
     minHeight: ControlSize.default,
     borderRadius: ComponentMetrics.inputRadius,
@@ -569,30 +1015,55 @@ const styles = StyleSheet.create({
     color: BrandColors.text,
     ...Typography.body,
   },
-  card: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
-  deliveryCard: { gap: Spacing.sm },
-  top: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
-  fill: { flex: 1 },
-  title: { color: BrandColors.text, ...Typography.label },
-  meta: {
+  multilineInput: {
+    minHeight: ControlSize.default + Spacing.xl,
+    paddingTop: Spacing.sm,
+    textAlignVertical: "top",
+  },
+  sheet: {
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.md,
+    gap: Spacing.sm,
+  },
+  sheetScroll: { flexShrink: 1 },
+  sheetBody: { gap: Spacing.sm, paddingBottom: Spacing.xs },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  sheetHeaderCopy: { flex: 1 },
+  sheetTitle: { color: BrandColors.text, ...Typography.h3 },
+  sheetMeta: {
     color: BrandColors.muted,
     ...Typography.caption,
     marginTop: Spacing.xxs,
   },
-  address: { color: BrandColors.text, ...Typography.label },
-  actions: { flexDirection: "row", gap: Spacing.xs },
-  primary: {
-    flex: 1,
-    minHeight: ControlSize.default,
-    borderRadius: Radius.md,
-    backgroundColor: BrandColors.green,
+  sheetClose: {
+    width: ControlSize.compact,
+    height: ControlSize.compact,
+    borderRadius: Radius.sm,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: Spacing.sm,
   },
-  primaryText: { color: BrandColors.white, ...Typography.label },
-  secondary: {
+  summaryCard: { gap: Spacing.xs },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  summaryText: {
     flex: 1,
+    color: BrandColors.muted,
+    ...Typography.caption,
+  },
+  sheetFooter: {
+    flexDirection: "row",
+    gap: Spacing.xs,
+  },
+  footerButton: { flex: 1 },
+  saveFooterButton: { flex: 1.6 },
+  cameraButton: {
     minHeight: ControlSize.default,
     borderRadius: Radius.md,
     backgroundColor: BrandColors.greenLight,
@@ -602,15 +1073,34 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
     paddingHorizontal: Spacing.sm,
   },
-  secondaryText: { color: BrandColors.greenDark, ...Typography.label },
-  iconButton: {
-    width: ControlSize.default,
-    height: ControlSize.default,
-    borderRadius: Radius.md,
+  cameraText: { color: BrandColors.greenDark, ...Typography.label },
+  cancelLink: {
+    minHeight: ControlSize.compact,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.xs,
   },
-  incidentRow: { flexDirection: "row", alignItems: "center", gap: Spacing.sm },
-  confirm: { gap: Spacing.sm },
-  disabled: { opacity: Interaction.disabledOpacity },
+  cancelLinkText: { color: BrandColors.danger, ...Typography.label },
+  dialog: {
+    backgroundColor: BrandColors.white,
+    borderRadius: Radius.lg,
+    padding: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  dialogHeader: { flexDirection: "row", alignItems: "center", gap: Spacing.xs },
+  dialogTitle: { color: BrandColors.text, ...Typography.h3, flex: 1 },
+  dialogHint: { color: BrandColors.muted, ...Typography.caption },
+  dialogActions: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: Spacing.xs,
+    marginTop: Spacing.xs,
+  },
+  dialogButton: { flex: 1 },
+  pressed: {
+    opacity: Interaction.pressedOpacity,
+    transform: [{ scale: Interaction.pressedScale }],
+  },
 });

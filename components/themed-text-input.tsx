@@ -1,5 +1,6 @@
 import { forwardRef, useState } from "react";
 import {
+  Platform,
   StyleSheet,
   TextInput as NativeTextInput,
   type TextInputProps,
@@ -42,19 +43,35 @@ export const ThemedTextInput = forwardRef<NativeTextInput, TextInputProps>(
         }}
         placeholderTextColor={placeholderTextColor ?? BrandColors.muted}
         selectionColor={selectionColor ?? BrandColors.greenMid}
-        style={[style, isFocused && styles.focused]}
+        style={[styles.base, style, isFocused && styles.focused]}
         underlineColorAndroid={underlineColorAndroid ?? "transparent"}
       />
     );
   },
 );
 
+// `base` mantiene siempre presentes las mismas claves de borde (aunque en 0 /
+// transparente) para que el único cambio al enfocar sea el VALOR del color,
+// nunca la aparición de una propiedad nueva. En Android, agregar borderWidth
+// u outline* justo cuando el input recibe foco obliga a recrear la vista
+// nativa del TextInput, lo que cierra el teclado y pierde el cursor de
+// inmediato (el bug reportado). El aro ("outline") sólo se agrega en web,
+// donde no existe ese problema de recreación de vista nativa.
 const styles = StyleSheet.create({
-  focused: {
-    borderColor: BrandColors.green,
-    outlineColor: FocusRing.color,
-    outlineOffset: FocusRing.offset,
-    outlineStyle: "solid",
-    outlineWidth: FocusRing.width,
+  base: {
+    borderWidth: 0,
+    borderColor: "transparent",
   },
+  focused: Platform.select({
+    web: {
+      borderColor: BrandColors.green,
+      outlineColor: FocusRing.color,
+      outlineOffset: FocusRing.offset,
+      outlineStyle: "solid",
+      outlineWidth: FocusRing.width,
+    },
+    default: {
+      borderColor: BrandColors.green,
+    },
+  }),
 });

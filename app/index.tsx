@@ -4,6 +4,7 @@ import { type ComponentProps, useEffect, useState, useRef } from "react";
 import {
   Animated,
   KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -218,7 +219,7 @@ export default function RootLoginScreen() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        behavior="padding"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.flex}
       >
         <ScrollView
@@ -344,6 +345,7 @@ export default function RootLoginScreen() {
               {mode === "sign_up" ? (
                 <>
                   <CustomerInput
+                    key="name"
                     autoCapitalize="words"
                     autoComplete="name"
                     icon="account-outline"
@@ -353,6 +355,7 @@ export default function RootLoginScreen() {
                     value={name}
                   />
                   <CustomerInput
+                    key="phone"
                     autoComplete="tel"
                     icon="phone-outline"
                     keyboardType="phone-pad"
@@ -364,6 +367,7 @@ export default function RootLoginScreen() {
                 </>
               ) : null}
               <CustomerInput
+                key="email"
                 autoCapitalize="none"
                 autoComplete="email"
                 icon="email-outline"
@@ -374,6 +378,7 @@ export default function RootLoginScreen() {
                 value={email}
               />
               <CustomerInput
+                key="password"
                 autoCapitalize="none"
                 autoComplete={mode === "sign_up" ? "new-password" : "password"}
                 icon="lock-outline"
@@ -780,7 +785,6 @@ const styles = StyleSheet.create({
   },
   inputWrapFocused: {
     borderColor: BrandColors.green,
-    ...Elevation.ambientCard,
   },
   input: {
     flex: 1,

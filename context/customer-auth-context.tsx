@@ -59,6 +59,13 @@ type CustomerAuthContextValue = {
   isConfigured: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (input: CustomerSignUpInput) => Promise<void>;
+  signInWithOtpPhone: (phone: string) => Promise<void>;
+  verifyPhoneOtp: (phone: string, token: string) => Promise<void>;
+  signInWithIdToken: (
+    provider: 'google' | 'apple',
+    idToken: string,
+    nonce?: string
+  ) => Promise<void>;
   signOut: () => Promise<void>;
   continueToSignIn: () => void;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
@@ -259,6 +266,88 @@ export function CustomerAuthProvider({ children }: PropsWithChildren) {
     [activateSession, clearSession, client]
   );
 
+  const signInWithOtpPhone = useCallback(
+    async (phoneValue: string) => {
+      if (!client)
+        throw new Error('Configura Supabase antes de enviar el código.');
+      const phone = normalizeCustomerPhone(phoneValue);
+      if (!phone) throw new Error('Ingresa tu número de teléfono.');
+      setState('authenticating');
+      setMessage(null);
+      try {
+        const { error } = await client.auth.signInWithOtp({ phone });
+        if (error) throw error;
+        setState('anonymous');
+      } catch (error) {
+        const authMessage = getCustomerAuthErrorMessage(error);
+        setState('error');
+        setMessage(authMessage);
+        throw new Error(authMessage);
+      }
+    },
+    [client]
+  );
+
+  const verifyPhoneOtp = useCallback(
+    async (phoneValue: string, token: string) => {
+      if (!client)
+        throw new Error('Configura Supabase antes de verificar el código.');
+      const phone = normalizeCustomerPhone(phoneValue);
+      const code = token.replace(/\D/g, '');
+      if (!phone) throw new Error('Ingresa tu número de teléfono.');
+      if (!code) throw new Error('Ingresa el código que te enviamos por SMS.');
+      setState('authenticating');
+      setMessage(null);
+      try {
+        const { data, error } = await client.auth.verifyOtp({
+          phone,
+          token: code,
+          type: 'sms',
+        });
+        if (error) throw error;
+        if (!data.session || !data.user) {
+          throw new Error('Supabase no devolvió una sesión válida.');
+        }
+        await activateSession(data.session);
+      } catch (error) {
+        clearSession();
+        const authMessage = getCustomerAuthErrorMessage(error);
+        setState('error');
+        setMessage(authMessage);
+        throw new Error(authMessage);
+      }
+    },
+    [activateSession, clearSession, client]
+  );
+
+  const signInWithIdToken = useCallback(
+    async (provider: 'google' | 'apple', idToken: string, nonce?: string) => {
+      if (!client)
+        throw new Error('Configura Supabase antes de usar este acceso.');
+      setState('authenticating');
+      setMessage(null);
+      try {
+        const { data, error } = await client.auth.signInWithIdToken({
+          provider,
+          token: idToken,
+          nonce,
+        });
+        if (error) throw error;
+        if (!data.session || !data.user) {
+          throw new Error('Supabase no devolvió una sesión válida.');
+        }
+        await activateSession(data.session);
+      } catch (error) {
+        clearSession();
+        const authMessage = getCustomerAuthErrorMessage(error);
+        setState('error');
+        setMessage(authMessage);
+        throw new Error(authMessage);
+      }
+    },
+    [activateSession, clearSession, client]
+  );
+
   const signUp = useCallback(
     async (input: CustomerSignUpInput) => {
       if (!client) throw new Error('Configura Supabase antes de registrarte.');
@@ -416,6 +505,9 @@ export function CustomerAuthProvider({ children }: PropsWithChildren) {
       isConfigured: getSupabasePublicConfig().isConfigured,
       signIn,
       signUp,
+      signInWithOtpPhone,
+      verifyPhoneOtp,
+      signInWithIdToken,
       signOut,
       continueToSignIn,
       changePassword,
@@ -430,7 +522,10 @@ export function CustomerAuthProvider({ children }: PropsWithChildren) {
       getAccessToken,
       message,
       signIn,
+      signInWithIdToken,
+      signInWithOtpPhone,
       signOut,
+      verifyPhoneOtp,
       signUp,
       sendPasswordReset,
       state,

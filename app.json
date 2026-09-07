@@ -65,7 +65,8 @@
           "photosPermission": false,
           "cameraPermission": "Cogana usa la cámara para registrar evidencia de entrega."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

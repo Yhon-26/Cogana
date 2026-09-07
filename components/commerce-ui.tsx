@@ -80,10 +80,11 @@ export function ProductVisual({
 }: {
   name: string;
   category?: string;
-  size?: number;
+  size?: number | "100%";
 }) {
   const visual = getProductVisual(name, category);
-  const iconSize = Math.round(size * 0.43);
+  const iconSize =
+    typeof size === "number" ? Math.round(size * 0.42) : Math.round(76 * 0.42);
   return (
     <View
       accessibilityElementsHidden
@@ -93,25 +94,14 @@ export function ProductVisual({
         {
           width: size,
           height: size,
-          borderRadius: Math.round(size * 0.3),
-          backgroundColor: visual.background,
+          borderRadius: Radius.sm,
         },
       ]}
     >
-      <View
-        style={[
-          styles.visualAccent,
-          {
-            backgroundColor: visual.foreground,
-            width: Math.max(10, size * 0.2),
-            height: Math.max(10, size * 0.2),
-          },
-        ]}
-      />
       <MaterialCommunityIcons
         name={visual.icon}
         size={iconSize}
-        color={visual.foreground}
+        color={BrandColors.mutedLight}
       />
     </View>
   );

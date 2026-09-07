@@ -8,17 +8,19 @@ export const BrandColors = {
   greenMid: '#D4E8D8',
   greenLight: '#E8F3EA',
   gold: '#F0B43C',
+  offer: '#C2410C',
+  offerSoft: '#FFF1E7',
   goldDark: '#9B6912',
-  goldLight: '#FFF2CD',
-  cream: '#F8F6EF',
-  sand: '#EFE9DC',
+  goldLight: '#FEF3E7',
+  cream: '#F8F9FA',
+  sand: '#EEF1F4',
   white: '#FFFFFF',
-  surfaceMuted: '#F0F2ED',
+  surfaceMuted: '#F1F5F9',
   text: '#17231B',
   muted: '#5F6B62',
   mutedLight: '#8A948C',
-  line: '#E1E5DE',
-  lineStrong: '#CBD2CA',
+  line: '#E2E8F0',
+  lineStrong: '#CBD5E1',
   danger: '#A23F37',
   dangerLight: '#FBEAE7',
   warning: '#836115',
@@ -37,10 +39,10 @@ export const Spacing = {
 } as const;
 
 export const Radius = {
-  sm: 10,
-  md: 14,
-  lg: 18,
-  xl: 24,
+  sm: 6,
+  md: 8,
+  lg: 8,
+  xl: 12,
   round: 999,
 } as const;
 
@@ -64,10 +66,10 @@ export const Layout = {
 } as const;
 
 export const ComponentMetrics = {
-  inputRadius: 13,
-  navigationItemRadius: 16,
+  inputRadius: 8,
+  navigationItemRadius: 8,
   navigationItemHeight: 58,
-  productVisualRadius: 19,
+  productVisualRadius: 8,
 } as const;
 
 export const Interaction = {
@@ -82,41 +84,12 @@ export const FocusRing = {
   width: 3,
 } as const;
 
-function platformElevation(
-  native: {
-    elevation: number;
-    shadowColor: string;
-    shadowOffset: { width: number; height: number };
-    shadowOpacity: number;
-    shadowRadius: number;
-  },
-  boxShadow: string
-) {
-  return Platform.OS === 'web' ? { boxShadow } : native;
-}
-
+// La interfaz es un marco invisible: sin sombras difusas. La separación se
+// logra con espaciado y líneas de 1px (BrandColors.line).
 export const Elevation = {
-  ambientCard: platformElevation({
-    elevation: 2,
-    shadowColor: BrandColors.ink,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-  }, '0 2px 10px rgba(19, 32, 25, 0.06)'),
-  dockUpward: platformElevation({
-    elevation: 8,
-    shadowColor: BrandColors.ink,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-  }, '0 -3px 12px rgba(19, 32, 25, 0.08)'),
-  tabUpward: platformElevation({
-    elevation: 10,
-    shadowColor: BrandColors.ink,
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.07,
-    shadowRadius: 10,
-  }, '0 -3px 10px rgba(19, 32, 25, 0.07)'),
+  ambientCard: {},
+  dockUpward: {},
+  tabUpward: {},
 } as const;
 
 export const ProductPalette = {
@@ -133,19 +106,67 @@ export const OverlayColors = {
 } as const;
 
 export const Typography = {
-  display: { fontSize: 34, lineHeight: 40, fontWeight: '800' as const },
-  h1: { fontSize: 28, lineHeight: 34, fontWeight: '800' as const },
-  h2: { fontSize: 22, lineHeight: 28, fontWeight: '800' as const },
-  h3: { fontSize: 18, lineHeight: 24, fontWeight: '700' as const },
-  bodyLarge: { fontSize: 16, lineHeight: 24, fontWeight: '400' as const },
-  body: { fontSize: 14, lineHeight: 21, fontWeight: '400' as const },
-  label: { fontSize: 13, lineHeight: 18, fontWeight: '700' as const },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: '500' as const },
+  display: {
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: '800' as const,
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  h1: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '800' as const,
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  h2: {
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '800' as const,
+    fontFamily: 'Outfit_800ExtraBold',
+  },
+  h3: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '700' as const,
+    fontFamily: 'Outfit_700Bold',
+  },
+  bodyLarge: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400' as const,
+    fontFamily: 'PlusJakartaSans_400Regular',
+  },
+  body: {
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: '400' as const,
+    fontFamily: 'PlusJakartaSans_400Regular',
+  },
+  label: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600' as const,
+    fontFamily: 'PlusJakartaSans_600SemiBold',
+  },
+  caption: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '500' as const,
+    fontFamily: 'PlusJakartaSans_500Medium',
+  },
   overline: {
     fontSize: 11,
     lineHeight: 14,
-    fontWeight: '800' as const,
+    fontWeight: '700' as const,
     letterSpacing: 1.4,
+    fontFamily: 'PlusJakartaSans_700Bold',
+  },
+  // Precios: el elemento más visible de la tarjeta de producto
+  price: {
+    fontSize: 18,
+    lineHeight: 24,
+    fontWeight: '800' as const,
+    fontFamily: 'Outfit_800ExtraBold',
   },
 } as const;
 

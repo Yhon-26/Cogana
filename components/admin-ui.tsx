@@ -23,7 +23,6 @@ import {
   Elevation,
   Interaction,
   Layout,
-  OverlayColors,
   Radius,
   Spacing,
   Typography,
@@ -73,7 +72,7 @@ export function AdminScreen({
               <MaterialCommunityIcons
                 name="chevron-left"
                 size={25}
-                color={BrandColors.white}
+                color={BrandColors.text}
               />
             </Pressable>
           ) : null}
@@ -293,17 +292,17 @@ export const sharedStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: BrandColors.greenDark },
-  main: { flex: 1, backgroundColor: BrandColors.cream },
+  safeArea: { flex: 1, backgroundColor: BrandColors.white },
+  main: { flex: 1, backgroundColor: BrandColors.white },
   scrollContent: {
     flexGrow: 1,
     backgroundColor: BrandColors.cream,
     paddingBottom: Spacing.xxl,
   },
   header: {
-    backgroundColor: BrandColors.greenDark,
-    borderBottomLeftRadius: Radius.xl,
-    borderBottomRightRadius: Radius.xl,
+    backgroundColor: BrandColors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.line,
   },
   headerInner: {
     width: "100%",
@@ -322,13 +321,13 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: OverlayColors.onDarkSoft,
+    backgroundColor: BrandColors.surfaceMuted,
     marginRight: Spacing.sm,
   },
-  eyebrow: { color: BrandColors.gold, ...Typography.overline },
-  title: { color: BrandColors.white, ...Typography.h1, marginTop: Spacing.xxs },
+  eyebrow: { color: BrandColors.green, ...Typography.overline },
+  title: { color: BrandColors.text, ...Typography.h1, marginTop: Spacing.xxs },
   subtitle: {
-    color: BrandColors.greenMid,
+    color: BrandColors.muted,
     ...Typography.caption,
     marginTop: Spacing.xxs,
   },

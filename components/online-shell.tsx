@@ -67,7 +67,7 @@ export function OnlineScreen({
             <MaterialCommunityIcons
               name={canGoBack ? "chevron-left" : "sprout"}
               size={canGoBack ? 25 : 21}
-              color={canGoBack ? BrandColors.greenDark : BrandColors.goldDark}
+              color={canGoBack ? BrandColors.greenDark : BrandColors.green}
             />
           </Pressable>
           <View style={styles.headerCopy}>
@@ -211,28 +211,21 @@ function Nav({
       style={({ pressed }) => [
         styles.navItem,
         expanded ? styles.navItemExpanded : styles.navItemFloating,
-        selected && (expanded ? styles.navItemSelected : styles.navItemActive),
+        selected && styles.navItemSelected,
         pressed && styles.pressed,
       ]}
     >
       <MaterialCommunityIcons
         name={icon}
         size={22}
-        color={
-          expanded
-            ? selected
-              ? BrandColors.greenDark
-              : BrandColors.muted
-            : selected
-              ? BrandColors.ink
-              : BrandColors.greenMid
-        }
+        color={selected ? BrandColors.green : BrandColors.muted}
       />
-      {expanded ? (
-        <Text style={[styles.navText, selected && styles.navTextSelected]}>
-          {label}
-        </Text>
-      ) : null}
+      <Text
+        maxFontSizeMultiplier={1.2}
+        style={[styles.navText, selected && styles.navTextSelected]}
+      >
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -241,7 +234,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BrandColors.cream },
   header: {
     minHeight: 88,
-    backgroundColor: BrandColors.cream,
+    backgroundColor: BrandColors.white,
     borderBottomWidth: 1,
     borderBottomColor: BrandColors.line,
   },
@@ -279,8 +272,8 @@ const styles = StyleSheet.create({
     borderColor: BrandColors.line,
   },
   brandIcon: {
-    backgroundColor: BrandColors.goldLight,
-    borderColor: BrandColors.gold,
+    backgroundColor: BrandColors.greenLight,
+    borderColor: BrandColors.green,
   },
   cartIcon: {
     width: ControlSize.default,
@@ -297,13 +290,13 @@ const styles = StyleSheet.create({
     minWidth: 20,
     height: 20,
     borderRadius: Radius.round,
-    backgroundColor: BrandColors.gold,
+    backgroundColor: BrandColors.offer,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: Spacing.xxs,
   },
   badgeText: {
-    color: BrandColors.ink,
+    color: BrandColors.white,
     ...Typography.overline,
     letterSpacing: 0,
   },
@@ -335,20 +328,15 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.sm,
   },
   bottomSafe: {
-    backgroundColor: "transparent",
-    paddingHorizontal: Spacing.xl,
-    paddingTop: Spacing.xs,
+    backgroundColor: BrandColors.white,
   },
   nav: { flexDirection: "row" },
   navFloating: {
-    alignSelf: "center",
-    alignItems: "center",
-    backgroundColor: BrandColors.ink,
-    borderRadius: Radius.round,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: Spacing.xxs,
-    gap: Spacing.xxs,
-    ...Elevation.tabUpward,
+    flexDirection: "row",
+    backgroundColor: BrandColors.white,
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.line,
+    minHeight: 58,
   },
   railSafe: {
     width: Layout.navigationRailWidth,
@@ -370,11 +358,9 @@ const styles = StyleSheet.create({
     gap: Spacing.xxs,
   },
   navItemFloating: {
-    width: 48,
-    height: 48,
-    borderRadius: Radius.round,
+    flex: 1,
+    minHeight: 56,
   },
-  navItemActive: { backgroundColor: BrandColors.gold },
   navItemExpanded: {
     flex: 0,
     width: "100%",
@@ -383,8 +369,7 @@ const styles = StyleSheet.create({
   navItemSelected: { backgroundColor: BrandColors.greenLight },
   navText: {
     color: BrandColors.muted,
-    ...Typography.overline,
-    letterSpacing: 0,
+    ...Typography.caption,
   },
   navTextSelected: { color: BrandColors.greenDark },
   pressed: {

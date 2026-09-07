@@ -1,5 +1,6 @@
 import { DefaultTheme, ThemeProvider } from "@react-navigation/native";
 import { Stack } from "expo-router";
+import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { SQLiteProvider } from "expo-sqlite";
 import { Suspense, useEffect, useState } from "react";
@@ -19,6 +20,20 @@ import { SupabaseAuthProvider } from "@/context/supabase-auth-context";
 import { DATABASE_NAME, initializeDatabase } from "@/database";
 import { useAppStackScreenOptions } from "@/hooks/use-app-stack-screen-options";
 import "react-native-reanimated";
+
+// Tipografías corporativas: Outfit para títulos y precios, Plus Jakarta Sans
+// para texto de lectura. Fijarlas evita que la fuente del sistema del teléfono
+// (a veces manuscrita) contamine la identidad de la marca.
+import {
+  Outfit_700Bold,
+  Outfit_800ExtraBold,
+} from "@expo-google-fonts/outfit";
+import {
+  PlusJakartaSans_400Regular,
+  PlusJakartaSans_500Medium,
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+} from "@expo-google-fonts/plus-jakarta-sans";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -40,6 +55,14 @@ function RootNavigator() {
   const screenOptions = useAppStackScreenOptions();
   const hasCustomerSession = state === "authenticated" && account !== null;
   const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
+  const [fontsLoaded] = useFonts({
+    Outfit_700Bold,
+    Outfit_800ExtraBold,
+    PlusJakartaSans_400Regular,
+    PlusJakartaSans_500Medium,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+  });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -48,7 +71,7 @@ function RootNavigator() {
     return () => clearTimeout(timer);
   }, []);
 
-  const isAppReady = state !== "loading" && minSplashTimeElapsed;
+  const isAppReady = state !== "loading" && minSplashTimeElapsed && fontsLoaded;
 
   useEffect(() => {
     if (isAppReady) {

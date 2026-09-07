@@ -22,6 +22,8 @@
     "test:database": "node --test .test-dist/tests/migrations.test.js .test-dist/tests/inventory-movements.test.js .test-dist/tests/product-management.test.js .test-dist/tests/presentations.test.js .test-dist/tests/price-updates.test.js .test-dist/tests/cash-sessions.test.js .test-dist/tests/cash-differences.test.js .test-dist/tests/app-preferences.test.js .test-dist/tests/sales.test.js .test-dist/tests/sales-voids.test.js .test-dist/tests/sales-returns.test.js .test-dist/tests/reports.test.js .test-dist/tests/persistence.test.js .test-dist/tests/suppliers.test.js .test-dist/tests/procurement.test.js .test-dist/tests/personnel-operations.test.js .test-dist/tests/delivery-zones.test.js .test-dist/tests/orders.test.js .test-dist/tests/operator-auth.test.js .test-dist/tests/operator-route-access.test.js .test-dist/tests/payment-validation.test.js .test-dist/tests/customer-auth-validation.test.js .test-dist/tests/user-facing-error.test.js .test-dist/tests/online-cart.test.js .test-dist/tests/sync.test.js"
   },
   "dependencies": {
+    "@expo-google-fonts/outfit": "^0.4.3",
+    "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",

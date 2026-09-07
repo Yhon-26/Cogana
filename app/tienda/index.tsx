@@ -30,6 +30,7 @@ import {
 import { useCart } from "@/context/cart-context";
 import { useCustomerAuth } from "@/context/customer-auth-context";
 import { useAdaptiveLayout } from "@/hooks/use-adaptive-layout";
+import { formatQuantity } from "@/lib/units";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { getUserFacingErrorMessage } from "@/lib/user-facing-error";
 import type {
@@ -47,7 +48,23 @@ import {
 
 export default function StoreHomeScreen() {
   const { account } = useCustomerAuth();
-  const { addItem, items } = useCart();
+  const { addItem, items, setQuantity, removeItem } = useCart();
+  const handleStep = (product: OnlineProduct, direction: 1 | -1) => {
+    const step = product.pricingQuantity;
+    const current =
+      items.find((item) => item.product.id === product.id)?.quantity ?? 0;
+    const next =
+      direction === 1
+        ? Math.min(current + step, product.stockQuantity)
+        : current - step;
+    if (next <= 0) {
+      removeItem(product.id);
+      return;
+    }
+    if (next === current) return;
+    if (current === 0) addItem(product, step);
+    else setQuantity(product.id, next);
+  };
   const { isMedium } = useAdaptiveLayout();
   const [catalog, setCatalog] = useState<OnlineCatalog | null>(null);
   const [preferences, setPreferences] = useState<OnlinePreferences | null>(
@@ -108,22 +125,6 @@ export default function StoreHomeScreen() {
         getUserFacingErrorMessage(
           caughtError,
           "No se pudo guardar el favorito.",
-        ),
-      );
-    }
-  };
-
-  const quickAdd = (product: OnlineProduct) => {
-    const quantity = Math.min(product.pricingQuantity, product.stockQuantity);
-    if (quantity <= 0) return;
-    try {
-      addItem(product, quantity);
-    } catch (caughtError) {
-      Alert.alert(
-        "No se pudo agregar",
-        getUserFacingErrorMessage(
-          caughtError,
-          "Revisa la cantidad disponible.",
         ),
       );
     }
@@ -375,18 +376,20 @@ export default function StoreHomeScreen() {
           {shownProducts.map((product) => {
             const favorite =
               preferences?.favoriteProductIds.includes(product.id) ?? false;
-            const inCart = items.some((item) => item.product.id === product.id);
+            const lineQty =
+              items.find((item) => item.product.id === product.id)?.quantity ??
+              0;
             const soldOut = product.stockQuantity <= 0;
             return (
               <View
                 key={product.id}
                 style={[styles.card, isMedium && styles.cardMedium]}
               >
-                <View style={styles.cardTop}>
+                <View style={styles.photoBox}>
                   <ProductVisual
                     name={product.name}
                     category={product.category}
-                    size={76}
+                    size="100%"
                   />
                   <Pressable
                     accessibilityLabel={
@@ -403,7 +406,7 @@ export default function StoreHomeScreen() {
                   >
                     <MaterialCommunityIcons
                       name={favorite ? "heart" : "heart-outline"}
-                      size={21}
+                      size={19}
                       color={favorite ? BrandColors.danger : BrandColors.muted}
                     />
                   </Pressable>
@@ -422,13 +425,22 @@ export default function StoreHomeScreen() {
                   <Text maxFontSizeMultiplier={1.4} style={styles.category}>
                     {product.category}
                   </Text>
-                  <Text maxFontSizeMultiplier={1.4} numberOfLines={2} style={styles.name}>
+                  <Text
+                    maxFontSizeMultiplier={1.4}
+                    numberOfLines={2}
+                    style={styles.name}
+                  >
                     {product.name}
                   </Text>
                 </Pressable>
                 <View style={styles.priceRow}>
                   <View style={styles.priceCopy}>
-                    <Text maxFontSizeMultiplier={1.4} style={styles.price}>
+                    <Text
+                      maxFontSizeMultiplier={1.4}
+                      adjustsFontSizeToFit
+                      numberOfLines={1}
+                      style={styles.price}
+                    >
                       S/ {(product.priceCents / 100).toFixed(2)}
                     </Text>
                     <Text maxFontSizeMultiplier={1.4} style={styles.unit}>
@@ -436,27 +448,72 @@ export default function StoreHomeScreen() {
                       {product.baseUnit === "gram" ? "g" : "un."}
                     </Text>
                   </View>
-                  <Pressable
-                    accessibilityLabel={
-                      soldOut ? "Producto agotado" : `Agregar ${product.name}`
-                    }
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: soldOut, selected: inCart }}
-                    disabled={soldOut}
-                    onPress={() => quickAdd(product)}
-                    style={({ pressed }) => [
-                      styles.addButton,
-                      inCart && styles.addButtonActive,
-                      soldOut && styles.disabled,
-                      pressed && !soldOut && styles.pressed,
-                    ]}
-                  >
-                    <MaterialCommunityIcons
-                      name={inCart ? "check" : "plus"}
-                      size={20}
-                      color={BrandColors.white}
-                    />
-                  </Pressable>
+                  {lineQty > 0 ? (
+                    <View style={styles.stepper}>
+                      <Pressable
+                        accessibilityLabel={`Quitar una unidad de ${product.name}`}
+                        accessibilityRole="button"
+                        onPress={() => handleStep(product, -1)}
+                        style={({ pressed }) => [
+                          styles.stepperButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <MaterialCommunityIcons
+                          name="minus"
+                          size={18}
+                          color={BrandColors.green}
+                        />
+                      </Pressable>
+                      <Text
+                        maxFontSizeMultiplier={1.2}
+                        style={styles.stepperQty}
+                      >
+                        {formatQuantity(
+                          product.baseUnit,
+                          lineQty,
+                          false,
+                        )}
+                      </Text>
+                      <Pressable
+                        accessibilityLabel={`Agregar una unidad más de ${product.name}`}
+                        accessibilityRole="button"
+                        disabled={soldOut}
+                        onPress={() => handleStep(product, 1)}
+                        style={({ pressed }) => [
+                          styles.stepperButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <MaterialCommunityIcons
+                          name="plus"
+                          size={18}
+                          color={BrandColors.green}
+                        />
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <Pressable
+                      accessibilityLabel={
+                        soldOut ? "Producto agotado" : `Agregar ${product.name}`
+                      }
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: soldOut }}
+                      disabled={soldOut}
+                      onPress={() => handleStep(product, 1)}
+                      style={({ pressed }) => [
+                        styles.addButton,
+                        soldOut && styles.disabled,
+                        pressed && !soldOut && styles.pressed,
+                      ]}
+                    >
+                      <MaterialCommunityIcons
+                        name="plus"
+                        size={22}
+                        color={BrandColors.white}
+                      />
+                    </Pressable>
+                  )}
                 </View>
               </View>
             );
@@ -709,11 +766,13 @@ const styles = StyleSheet.create({
     ...Elevation.ambientCard,
   },
   cardMedium: { maxWidth: 216 },
-  cardTop: {
-    minHeight: 82,
-    flexDirection: "row",
-    justifyContent: "space-between",
+  photoBox: {
+    aspectRatio: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.xs,
   },
+
   cardDetails: { minHeight: ControlSize.default, justifyContent: "center" },
   favorite: {
     width: ControlSize.default,
@@ -724,15 +783,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   category: {
-    color: BrandColors.green,
-    ...Typography.caption,
-    fontWeight: "700",
+    color: BrandColors.muted,
+    ...Typography.overline,
+    letterSpacing: 0.6,
     marginTop: Spacing.xs,
   },
   name: {
     color: BrandColors.text,
-    ...Typography.body,
-    fontWeight: "700",
+    ...Typography.bodyLarge,
+    fontWeight: '500' as const,
+    fontFamily: 'PlusJakartaSans_500Medium',
     marginTop: Spacing.xxs,
     minHeight: 42,
   },
@@ -743,19 +803,39 @@ const styles = StyleSheet.create({
     marginTop: Spacing.xs,
   },
   priceCopy: { flex: 1 },
-  price: { color: BrandColors.greenDark, ...Typography.h3, fontWeight: "800" },
+  price: { color: BrandColors.text, ...Typography.price },
   unit: {
     color: BrandColors.muted,
     ...Typography.caption,
     marginTop: Spacing.xxs,
   },
   addButton: {
-    width: ControlSize.default,
-    height: ControlSize.default,
-    borderRadius: Radius.md,
+    width: 40,
+    height: 40,
+    borderRadius: Radius.round,
     backgroundColor: BrandColors.green,
     alignItems: "center",
     justifyContent: "center",
+  },
+  stepper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: BrandColors.line,
+    borderRadius: Radius.md,
+    backgroundColor: BrandColors.white,
+  },
+  stepperButton: {
+    width: 32,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperQty: {
+    minWidth: 34,
+    color: BrandColors.text,
+    ...Typography.label,
+    textAlign: "center",
   },
   addButtonActive: { backgroundColor: BrandColors.greenDark },
   pressed: {
